@@ -1,12 +1,19 @@
-# Audio to Piano
+# Audio to Notes
 
-Turn a piano recording into notes, clean out the noise, and get a MIDI file.
+Turn a recording into notes, clean out the noise, and read them as piano keys or guitar tab.
 
 ## Web app (any device)
 
 `web/index.html` is the whole app. It runs in the browser: drop an MP3, cut the start and end,
 transcribe with **Basic Pitch** (Spotify's neural network) or **Classic** (signal processing),
 delete noisy notes, and download MIDI. Nothing is uploaded.
+
+**Instruments.** The same notes can be shown as a piano roll or as **guitar tab** with a live fretboard.
+For guitar, each note or chord gets a string and fret chosen to keep chords within a 4-fret reach and the
+hand moving as little as possible; notes outside the guitar's range move an octave, and chords with more
+notes than strings drop the quietest. Tunings: Standard, Drop D, Half step down, DADGAD, plus a capo.
+Downloads: tab as `.txt` and MIDI with a guitar sound. Instruments are data (`INSTRUMENTS` in
+`web/index.html`), so bass or ukulele is one more entry with its open-string pitches.
 
 - **Live at https://recklesshogrider96.github.io/audio2notes/**
 - Every push to `main` that changes `web/` republishes the site (see `.github/workflows/pages.yml`).

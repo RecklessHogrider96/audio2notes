@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Audio to Piano</title>
+<title>Audio to Notes</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
@@ -31,6 +31,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
 .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
@@ -87,6 +88,9 @@ input[type=number] { width: 76px; font: 500 14px var(--font-mono); background: v
 .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12.5px; }
 .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
 .hint { color: var(--muted); font-size: 12.5px; line-height: 2; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 2px; background: var(--raised); gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 7px; font-weight: 600; color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 kbd { background: var(--raised); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 12px var(--font-mono); color: var(--fg); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .stat { background: var(--raised); border-radius: var(--radius); padding: 10px 12px; }
@@ -105,8 +109,8 @@ footer a { color: inherit; }
 
 <div class="wrap">
   <header>
-    <h1>Audio to Piano</h1>
-    <p>Turn a piano recording into notes you can see, play back and clean up, then download them as a MIDI file. Everything runs in your browser; your audio is never uploaded.</p>
+    <h1>Audio to Notes</h1>
+    <p>Turn a recording into notes you can see, play back and clean up, then read them as piano keys or guitar tab and download them. Everything runs in your browser; your audio is never uploaded.</p>
   </header>
 
   <section class="panel" id="p-rec" aria-labelledby="h-rec">
@@ -143,12 +147,21 @@ footer a { color: inherit; }
   <section class="panel" id="p-edit" aria-labelledby="h-edit">
     <div class="panel-head"><span class="step">Step 2</span><h2 id="h-edit">Notes</h2><span class="sub" id="piecemeta"></span></div>
     <div class="row">
+      <div class="seg" role="tablist" aria-label="Instrument">
+        <button role="tab" id="ins-piano" data-ins="piano" aria-selected="true">Piano</button>
+        <button role="tab" id="ins-guitar" data-ins="guitar" aria-selected="false">Guitar</button>
+      </div>
+      <span class="field" data-for="guitar" hidden>Tuning <select id="tuning"></select></span>
+      <span class="field" data-for="guitar" hidden>Capo <select id="capo"></select></span>
+    </div>
+    <div class="row">
       <button class="primary" id="play" style="min-width:88px">▶ Play</button>
       <button id="restart">⟲ Restart</button>
       <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="0.75"><span class="num" id="speedv">75%</span></span>
       <span class="field">Hear <select id="hear"><option value="notes">Notes</option><option value="rec">Recording</option><option value="both">Both</option><option value="none">Nothing</option></select></span>
       <span class="sep"></span>
       <button class="primary" id="dl">Download MIDI</button>
+      <button class="primary" id="dltab" data-for="guitar" hidden>Download tab</button>
     </div>
     <div class="row">
       <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
@@ -167,11 +180,18 @@ footer a { color: inherit; }
     <div id="stage"><canvas id="cv"></canvas></div>
     <div class="rollbar"><div id="prog"></div></div>
     <div class="legend">
-      <span><i class="sw" style="background:var(--rh)"></i>Right hand (middle C and up)</span>
-      <span><i class="sw" style="background:var(--lh)"></i>Left hand</span>
+      <span data-for="piano"><i class="sw" style="background:var(--rh)"></i>Right hand (middle C and up)</span>
+      <span data-for="piano"><i class="sw" style="background:var(--lh)"></i>Left hand</span>
+      <span data-for="guitar" hidden><i class="sw" style="background:var(--rh)"></i>Fret number on that string</span>
+      <span data-for="guitar" hidden><i class="sw" style="background:var(--lh)"></i>Moved an octave to fit the guitar</span>
+      <span data-for="guitar" hidden><i class="sw" style="background:var(--muted)"></i>× Too many notes at once, left out of the tab</span>
       <span id="lg-tiny"><i class="sw" style="background:var(--noise)"></i>Tiny note, probably noise</span>
     </div>
-    <div class="hint">
+    <div class="hint" data-for="guitar" hidden>
+      Read the tab left to right: each line is a string (thin high e on top) and the number is the fret. The fretboard below shows where to put your fingers right now.
+      Click a number to select that note · <kbd>Shift</kbd>+click or Box select for more · <kbd>⌫</kbd> delete · <kbd>⌘Z</kbd> undo · <kbd>Space</kbd> play/pause · drag the tab sideways to scrub
+    </div>
+    <div class="hint" data-for="piano">
       Click a note to select it (you'll hear it) · <kbd>Shift</kbd>+click adds more · <kbd>Shift</kbd>+drag or Box select grabs a group ·
       <kbd>⌫</kbd> delete · <kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo · <kbd>Esc</kbd> deselect · <kbd>Space</kbd> play/pause · drag the roll to scrub
     </div>
@@ -518,7 +538,7 @@ function scoreNotes(truth, est, tol = 0.05) {
 }
 
 /* ================= MIDI read / write, zip ================= */
-function midiBytes(notes, bpm = 120) {
+function midiBytes(notes, bpm = 120, program = 0) {
   const tpq = 480, tps = tpq * bpm / 60, ev = [];
   for (const n of notes) {
     ev.push([Math.round(n.start * tps), 1, [0x90, n.pitch, Math.max(1, Math.min(127, n.vel | 0))]]);
@@ -526,7 +546,7 @@ function midiBytes(notes, bpm = 120) {
   }
   ev.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const vlq = v => { const o = [v & 0x7f]; v >>= 7; while (v) { o.unshift((v & 0x7f) | 0x80); v >>= 7; } return o; };
-  const us = Math.round(60e6 / bpm), trk = [...vlq(0), 0xff, 0x51, 3, (us >> 16) & 255, (us >> 8) & 255, us & 255, ...vlq(0), 0xc0, 0];
+  const us = Math.round(60e6 / bpm), trk = [...vlq(0), 0xff, 0x51, 3, (us >> 16) & 255, (us >> 8) & 255, us & 255, ...vlq(0), 0xc0, program & 127];
   let last = 0; for (const [t, , msg] of ev) { trk.push(...vlq(t - last), ...msg); last = t; }
   trk.push(...vlq(0), 0xff, 0x2f, 0);
   const L = trk.length;
@@ -581,7 +601,125 @@ function makeZip(name, data) { // single stored (uncompressed) file
   return out;
 }
 
-window.A2P = { decodeToMono, Classic, BasicPitch, scoreNotes, midiBytes, parseMidi };
+/* ================= instruments =================
+   Each instrument is data. A fretted instrument is its open-string pitches (lowest string first) and a fret count;
+   adding bass or ukulele later is one more entry here. */
+const PITCH_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const INSTRUMENTS = {
+  piano: { label: 'Piano', view: 'roll', program: 0 },
+  guitar: { label: 'Guitar', view: 'tab', program: 25, frets: 20, tunings: {
+    standard: { label: 'Standard (E A D G B E)', open: [40, 45, 50, 55, 59, 64] },
+    dropd:    { label: 'Drop D (D A D G B E)', open: [38, 45, 50, 55, 59, 64] },
+    halfdown: { label: 'Half step down (Eb)', open: [39, 44, 49, 54, 58, 63] },
+    dadgad:   { label: 'DADGAD', open: [38, 45, 50, 55, 57, 62] },
+  } },
+};
+
+// Choose a string and fret for every note so chords stay within reach and the hand moves as little as possible.
+// Returns { map: Map(note -> {s, f, p, transposed} | {unplayable: true}), groups, stats }.
+function arrangeFretted(notes, open, frets) {
+  const nS = open.length, lo = Math.min(...open), hi = Math.max(...open) + frets;
+  const fit = p => { let q = p; while (q < lo) q += 12; while (q > hi) q -= 12; return q; };
+  const sorted = notes.slice().sort((a, b) => a.start - b.start || a.pitch - b.pitch);
+  const groups = [];
+  for (const n of sorted) { const g = groups[groups.length - 1]; if (g && n.start - g.t <= 0.035) g.notes.push(n); else groups.push({ t: n.start, notes: [n] }); }
+  const map = new Map(); let transposed = 0, unplayable = 0;
+  const layers = groups.map(g => {
+    const items = g.notes.map(n => ({ n, p: fit(n.pitch) }));
+    const byP = new Map();
+    for (const it of items) { const o = byP.get(it.p); if (!o || it.n.vel > o.n.vel) byP.set(it.p, it); }
+    let keep = [...byP.values()].sort((a, b) => b.n.vel - a.n.vel);
+    const dropped = keep.slice(nS); keep = keep.slice(0, nS).sort((a, b) => a.p - b.p);
+    const dups = items.filter(it => byP.get(it.p) !== it);
+    let list = [];
+    for (;;) {
+      const opts = keep.map(it => open.map((o, s) => ({ s, f: it.p - o })).filter(x => x.f >= 0 && x.f <= frets));
+      list = [];
+      const walk = (i, used, cur) => {
+        if (list.length > 600) return;
+        if (i === keep.length) { list.push(cur.slice()); return; }
+        for (const o of opts[i]) { if (used & (1 << o.s)) continue; cur.push(o); walk(i + 1, used | (1 << o.s), cur); cur.pop(); }
+      };
+      walk(0, 0, []);
+      if (list.length || !keep.length) break;
+      dropped.push(keep.pop()); // two notes need the same string: leave out the highest and try again
+    }
+    const cands = list.map(c => {
+      const fz = c.filter(x => x.f > 0).map(x => x.f);
+      const span = fz.length ? Math.max(...fz) - Math.min(...fz) : 0;
+      const pos = fz.length ? (Math.max(...fz) + Math.min(...fz)) / 2 : null;
+      const cost = span * 0.7 + Math.max(0, span - 4) * 6 + (pos === null ? 0 : pos * 0.08) + fz.reduce((a, b) => a + b, 0) * 0.02;
+      return { c, pos, cost };
+    }).sort((a, b) => a.cost - b.cost).slice(0, 40);
+    return { g, keep, dropped, dups, cands };
+  });
+  // Viterbi over groups: total = own cost + hand movement (cheaper when there is more time to move)
+  const best = layers.map(L => L.cands.map(() => ({ total: Infinity, from: -1 })));
+  layers.forEach((L, i) => L.cands.forEach((c, j) => {
+    if (i === 0 || !layers[i - 1].cands.length) { best[i][j] = { total: c.cost, from: -1 }; return; }
+    const prev = layers[i - 1], gap = L.g.t - prev.g.t;
+    let bt = Infinity, bf = -1;
+    prev.cands.forEach((pc, k) => {
+      const move = c.pos === null || pc.pos === null ? 0 : Math.abs(c.pos - pc.pos) * 0.5 / (1 + 2 * gap);
+      const tot = best[i - 1][k].total + move + c.cost;
+      if (tot < bt) { bt = tot; bf = k; }
+    });
+    best[i][j] = { total: bt, from: bf };
+  }));
+  let j = -1;
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const L = layers[i];
+    if (j < 0 || j >= L.cands.length) { j = 0; for (let k = 1; k < L.cands.length; k++) if (best[i][k].total < best[i][j].total) j = k; }
+    const pick = L.cands[j];
+    if (pick) pick.c.forEach((pos, idx) => { const it = L.keep[idx]; map.set(it.n, { s: pos.s, f: pos.f, p: it.p, transposed: it.p !== it.n.pitch }); });
+    for (const it of L.dups) { const a = map.get(byPitch(L, it.p)); map.set(it.n, a ? { ...a, transposed: it.p !== it.n.pitch } : { unplayable: true }); }
+    for (const it of L.dropped) map.set(it.n, { unplayable: true });
+    j = pick ? best[i][j].from : -1;
+  }
+  function byPitch(L, p) { const k = L.keep.find(it => it.p === p); return k && k.n; }
+  for (const [n, a] of map) { if (a.unplayable) unplayable++; else if (a.transposed) transposed++; }
+  let maxFret = 0; for (const a of map.values()) if (!a.unplayable) maxFret = Math.max(maxFret, a.f);
+  return { map, groups, stats: { transposed, unplayable, maxFret } };
+}
+
+function stringNames(open) {
+  const names = open.map(p => PITCH_NAMES[p % 12]);
+  return names.map((nm, i) => (i === names.length - 1 && names.indexOf(nm) < i) ? nm.toLowerCase() : nm);
+}
+
+// Plain-text tab. Spacing follows timing (there are no bar lines: the transcription has no tempo or beat).
+function tabText(title, arr, open, capo, tuningLabel, width = 76) {
+  const nS = open.length, labels = stringNames(open.map(p => p + capo)).map(s => s.padEnd(2));
+  const cols = [];
+  let prevT = null;
+  for (const g of arr.groups) {
+    const placed = g.notes.map(n => arr.map.get(n)).filter(a => a && !a.unplayable);
+    if (!placed.length) continue;
+    const gap = prevT === null ? 1 : Math.max(1, Math.min(8, Math.round((g.t - prevT) / 0.12)));
+    for (let k = 0; k < gap; k++) cols.push(Array(nS).fill('-'));
+    const w = Math.max(...placed.map(a => String(a.f).length));
+    const col = Array(nS).fill('-'.repeat(w));
+    for (const a of placed) col[a.s] = String(a.f).padEnd(w, '-');
+    cols.push(col); prevT = g.t;
+  }
+  cols.push(Array(nS).fill('-'));
+  const out = [title, `Tuning: ${tuningLabel}${capo ? ` · Capo on fret ${capo} (frets are counted from the capo)` : ''}`,
+    'Spacing follows the timing of the recording; there are no bar lines.'];
+  if (arr.stats.transposed) out.push(`${arr.stats.transposed} note(s) were moved an octave to fit the guitar.`);
+  if (arr.stats.unplayable) out.push(`${arr.stats.unplayable} note(s) were left out because more notes sounded at once than there are strings.`);
+  out.push('');
+  let i = 0;
+  while (i < cols.length) {
+    let len = 0, j = i;
+    while (j < cols.length && len + cols[j][0].length <= width - 4) { len += cols[j][0].length; j++; }
+    if (j === i) j = i + 1;
+    for (let s = nS - 1; s >= 0; s--) out.push(labels[s] + '|' + cols.slice(i, j).map(c => c[s]).join('') + '|');
+    out.push(''); i = j;
+  }
+  return out.join('\n');
+}
+
+window.A2P = { decodeToMono, Classic, BasicPitch, scoreNotes, midiBytes, parseMidi, INSTRUMENTS, arrangeFretted, tabText };
 </script>
 
 <script>
@@ -608,7 +746,7 @@ const downloadsP = window.claude && window.claude.use ? window.claude.use('downl
 
 /* theme colors for canvases */
 let C = null;
-const readColors = () => { const s = getComputedStyle(document.documentElement); C = {}; for (const k of ['roll-bg', 'roll-grid', 'hit', 'rh', 'lh', 'noise', 'white-key', 'black-key', 'key-label', 'wave', 'wave-cut', 'accent', 'fg', 'muted']) C[k] = s.getPropertyValue('--' + k).trim(); };
+const readColors = () => { const s = getComputedStyle(document.documentElement); C = {}; for (const k of ['roll-bg', 'roll-grid', 'hit', 'rh', 'lh', 'noise', 'white-key', 'black-key', 'key-label', 'wave', 'wave-cut', 'accent', 'fg', 'muted', 'raised']) C[k] = s.getPropertyValue('--' + k).trim(); };
 readColors();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); drawWave(); });
 new MutationObserver(() => { readColors(); draw(); drawWave(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
@@ -817,7 +955,12 @@ function renderStats() {
   $('stats').innerHTML = `<div class="stat"><b>${song.notes.length}</b><span>notes</span></div>
     <div class="stat"><b>${fmt(song.end - 0.5)} s</b><span>length</span></div>
     <div class="stat"><b>${removed}</b><span>removed of ${piece.original.length} found</span></div>
-    <div class="stat"><b>${ENGINE_LABEL[piece.engine]}</b><span>transcribed with</span></div>`;
+    <div class="stat"><b>${ENGINE_LABEL[piece.engine]}</b><span>transcribed with</span></div>` + (isTab() ? (() => {
+      const s = arrangement().stats;
+      return `<div class="stat"><b>${s.maxFret}</b><span>highest fret used</span></div>
+        <div class="stat"><b>${s.transposed}</b><span>moved an octave to fit</span></div>
+        <div class="stat"><b>${s.unplayable}</b><span>left out (too many at once)</span></div>`;
+    })() : '');
 }
 
 function resize() {
@@ -847,8 +990,119 @@ try { const v = +localStorage.getItem('a2p.tinyMs'); if (v >= 50 && v <= 250) ti
 const isTiny = n => n.dur * 1000 <= tinyMs + 0.5;
 const tinyShown = () => $('tinyshow').checked;
 
+/* ================= instrument views ================= */
+let instrument = 'piano', tuningKey = 'standard', capo = 0;
+try {
+  const i = localStorage.getItem('a2p.instrument'); if (INSTRUMENTS[i]) instrument = i;
+  const tk = localStorage.getItem('a2p.tuning'); if (INSTRUMENTS.guitar.tunings[tk]) tuningKey = tk;
+  const c = +localStorage.getItem('a2p.capo'); if (c >= 0 && c <= 9) capo = c;
+} catch (e) {}
+const ins = () => INSTRUMENTS[instrument];
+const isTab = () => ins().view === 'tab';
+const openStrings = () => INSTRUMENTS.guitar.tunings[tuningKey].open.map(p => p + capo);
+let arrCache = { notes: null, key: '', arr: null };
+function arrangement() {
+  const key = tuningKey + '|' + capo;
+  if (!arrCache.arr || arrCache.notes !== song.notes || arrCache.key !== key)
+    arrCache = { notes: song.notes, key, arr: arrangeFretted(song.notes, openStrings(), INSTRUMENTS.guitar.frets - capo) };
+  return arrCache.arr;
+}
+// The pitch the current instrument plays: guitar may move a note an octave; null means it was left out.
+function playedPitch(n) { if (!isTab()) return n.pitch; const a = arrangement().map.get(n); return a && !a.unplayable ? a.p : null; }
+
 function draw() {
   if (!song) return;
+  if (isTab()) drawTab(); else drawRoll();
+  $('prog').style.width = Math.max(0, Math.min(100, t / song.end * 100)) + '%';
+}
+
+const TAB_PPS = 150; // tab scroll speed: pixels per second of music
+const TAB_LABEL_W = 28;
+function tabGeom() {
+  const W = cv.clientWidth, H = cv.clientHeight, fbH = Math.min(150, Math.round(H * 0.34));
+  const top = 40, gap = Math.min(30, (H - fbH - top - 40) / 5);
+  return { W, H, fbH, top, gap, x0: Math.round(Math.max(90, W * 0.2)), pps: TAB_PPS };
+}
+function drawTab() {
+  const { W, H, fbH, top, gap, x0, pps } = tabGeom();
+  const arr = arrangement(), open = openStrings(), nS = open.length, names = stringNames(open);
+  const xOf = time => x0 + (time - t) * pps, yOf = s => top + (nS - 1 - s) * gap;
+  const tabBottom = H - fbH, outY = top + (nS - 1) * gap + 22;
+  ctx.clearRect(0, 0, W, H); noteRects = [];
+  ctx.fillStyle = C['roll-bg']; ctx.fillRect(0, 0, W, tabBottom);
+  ctx.font = '10px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
+  for (let s = Math.max(0, Math.floor(t - x0 / pps)); s <= t + (W - x0) / pps + 1; s++) {
+    const x = xOf(s); ctx.fillStyle = C['roll-grid']; ctx.fillRect(x, top - 12, 1, gap * (nS - 1) + 24);
+    if (x > TAB_LABEL_W + 16) { ctx.fillStyle = C['key-label']; ctx.fillText(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, x, top - 18); }
+  }
+  for (let s = 0; s < nS; s++) { ctx.globalAlpha = 0.5; ctx.fillStyle = C['key-label']; ctx.fillRect(TAB_LABEL_W, yOf(s) - 0.5, W - TAB_LABEL_W, s < 3 ? 1.6 : 1); ctx.globalAlpha = 1; }
+  const active = [];
+  for (const n of song.notes) {
+    const xs = xOf(n.start), xe = xOf(n.start + n.dur), a = arr.map.get(n);
+    const sounding = t >= n.start && t <= n.start + n.dur;
+    if (xe < TAB_LABEL_W - 20 || xs > W + 30) continue;
+    if (!a || a.unplayable) {
+      ctx.fillStyle = sel.has(n) ? C.fg : C.muted; ctx.font = '700 14px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('×', xs, outY + 5);
+      if (sel.has(n)) { ctx.strokeStyle = C.fg; ctx.lineWidth = 1.5; roundRect(xs - 8, outY - 8, 16, 17, 4); ctx.stroke(); }
+      noteRects.push({ n, x: xs - 8, y: outY - 8, w: 16, h: 17 });
+      continue;
+    }
+    const y = yOf(a.s), col = tinyShown() && isTiny(n) ? C.noise : a.transposed ? C.lh : C.rh;
+    if (sounding) active.push({ a, col });
+    const r0 = Math.max(TAB_LABEL_W, xs);
+    if (xe > r0) { ctx.globalAlpha = 0.35; ctx.fillStyle = col; ctx.fillRect(r0, y - 2, xe - r0, 4); ctx.globalAlpha = 1; }
+    const label = String(a.f), bw = 9 + 7 * label.length, bh = 18, bx = xs - bw / 2, by = y - bh / 2;
+    ctx.fillStyle = col; roundRect(bx, by, bw, bh, 5); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 11.5px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(label, xs, y + 4);
+    if (sel.has(n)) { ctx.strokeStyle = C.fg; ctx.lineWidth = 2; roundRect(bx - 2, by - 2, bw + 4, bh + 4, 6); ctx.stroke(); }
+    else if (n === hoverNote) { ctx.strokeStyle = C.fg; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5; roundRect(bx - 1, by - 1, bw + 2, bh + 2, 6); ctx.stroke(); ctx.globalAlpha = 1; }
+    noteRects.push({ n, x: bx, y: by, w: bw, h: bh });
+  }
+  ctx.fillStyle = C.accent; ctx.fillRect(x0 - 1, top - 14, 2, gap * (nS - 1) + 28);
+  ctx.fillStyle = C['roll-bg']; ctx.fillRect(0, 0, TAB_LABEL_W, tabBottom);
+  ctx.fillStyle = C.fg; ctx.font = '600 12px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
+  for (let s = 0; s < nS; s++) ctx.fillText(names[s], TAB_LABEL_W / 2, yOf(s) + 4);
+  if (box) drawBox();
+  drawFretboard(tabBottom, fbH, active, open);
+}
+function drawFretboard(y0, h, active, open) {
+  const W = cv.clientWidth, nS = open.length, names = stringNames(open);
+  const shown = Math.max(12, Math.min(INSTRUMENTS.guitar.frets - capo, arrangement().stats.maxFret + 1));
+  const L = 54, R = W - 14, top = y0 + 16, sg = (h - 42) / (nS - 1), fw = (R - L) / shown;
+  ctx.fillStyle = C.raised; ctx.fillRect(0, y0, W, h);
+  ctx.fillStyle = C['roll-grid'];
+  for (const f of [3, 5, 7, 9, 12, 15, 17, 19]) {
+    if (f > shown) continue;
+    const cx = L + (f - 0.5) * fw, mid = top + sg * (nS - 1) / 2;
+    const ys = f === 12 ? [top + sg * 1.5, top + sg * (nS - 2.5)] : [mid];
+    for (const yy of ys) { ctx.beginPath(); ctx.arc(cx, yy, Math.min(6, fw * 0.18), 0, 7); ctx.fill(); }
+  }
+  ctx.fillStyle = C.muted;
+  for (let f = 1; f <= shown; f++) ctx.fillRect(L + f * fw - 0.5, top, 1, sg * (nS - 1));
+  ctx.fillStyle = C.fg; ctx.fillRect(L - 3, top - 1, 4, sg * (nS - 1) + 2);
+  ctx.font = '600 12px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
+  for (let s = 0; s < nS; s++) {
+    const y = top + (nS - 1 - s) * sg;
+    ctx.fillStyle = C.muted; ctx.fillRect(L, y - 0.5, R - L, s < 3 ? 1.8 : 1);
+    ctx.fillStyle = C.fg; ctx.fillText(names[s], 16, y + 4);
+  }
+  ctx.fillStyle = C['key-label']; ctx.font = '10px Inter, system-ui, sans-serif';
+  for (let f = 1; f <= shown; f++) if (f % 2 === 1 || fw > 26) ctx.fillText(String(f), L + (f - 0.5) * fw, top + sg * (nS - 1) + 16);
+  if (capo) { ctx.fillStyle = C.accent; ctx.font = '600 10px Inter, system-ui, sans-serif'; ctx.fillText(`capo ${capo}`, L - 1, top + sg * (nS - 1) + 16); }
+  for (const { a, col } of active) {
+    const x = a.f === 0 ? L - 16 : L + (a.f - 0.5) * fw, y = top + (nS - 1 - a.s) * sg;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 10px Inter, system-ui, sans-serif'; ctx.fillText(a.f === 0 ? 'O' : String(a.f), x, y + 3.5);
+  }
+}
+function drawBox() {
+  const bx = Math.min(box.x0, box.x1), by = Math.min(box.y0, box.y1), bw = Math.abs(box.x1 - box.x0), bh = Math.abs(box.y1 - box.y0);
+  ctx.globalAlpha = 0.15; ctx.fillStyle = C.accent; ctx.fillRect(bx, by, bw, bh); ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.accent; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+}
+
+function drawRoll() {
   const W = cv.clientWidth, H = cv.clientHeight;
   const keyH = Math.min(110, H * 0.22), fallH = H - keyH, pps = fallH / LEAD;
   const { pos, ww } = layout(W);
@@ -876,18 +1130,13 @@ function draw() {
     if (t >= n.start && t <= n.start + n.dur) active.set(n.pitch, n.pitch < 60 ? C.lh : C.rh);
   }
   ctx.fillStyle = C.hit; ctx.fillRect(0, fallH - 1, W, 2);
-  if (box) {
-    const bx = Math.min(box.x0, box.x1), by = Math.min(box.y0, box.y1), bw = Math.abs(box.x1 - box.x0), bh = Math.abs(box.y1 - box.y0);
-    ctx.globalAlpha = 0.15; ctx.fillStyle = C.accent; ctx.fillRect(bx, by, bw, bh); ctx.globalAlpha = 1;
-    ctx.strokeStyle = C.accent; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, bw, bh);
-  }
+  if (box) drawBox();
   for (let m = song.lo; m <= song.hi; m++) {
     const p = pos[m]; if (p.black) continue;
     ctx.fillStyle = active.get(m) || C['white-key']; ctx.fillRect(p.x + 0.5, fallH + 1, p.w - 1, keyH - 2);
     if (m % 12 === 0) { ctx.fillStyle = C['key-label']; ctx.font = `${Math.min(10, ww * 0.45)}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(nname(m), p.x + p.w / 2, fallH + keyH - 6); }
   }
   for (let m = song.lo; m <= song.hi; m++) { const p = pos[m]; if (!p.black) continue; ctx.fillStyle = active.get(m) || C['black-key']; ctx.fillRect(p.x, fallH + 1, p.w, keyH * 0.62); }
-  $('prog').style.width = Math.max(0, Math.min(100, t / song.end * 100)) + '%';
 }
 
 /* playback */
@@ -898,11 +1147,12 @@ function ensureSynth() {
 function pluck(m, when, dur, vel) {
   if (!synth) return;
   const f = 440 * Math.pow(2, (m - 69) / 12), g = synth.createGain(); g.connect(synth.destination);
-  const peak = 0.18 * (vel / 127);
-  g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(peak, when + 0.005);
-  g.gain.exponentialRampToValueAtTime(peak * 0.35, when + Math.min(dur, 0.6));
+  const guitar = isTab(), peak = (guitar ? 0.15 : 0.18) * (vel / 127);
+  g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(peak, when + (guitar ? 0.003 : 0.005));
+  g.gain.exponentialRampToValueAtTime(peak * (guitar ? 0.2 : 0.35), when + Math.min(dur, guitar ? 0.35 : 0.6));
   g.gain.exponentialRampToValueAtTime(0.0001, when + dur + 0.25);
-  [[1, 1], [2, 0.4], [3, 0.18], [4, 0.08]].forEach(([h, a]) => {
+  // a plucked string is brighter than the piano tone: more upper partials
+  (guitar ? [[1, 1], [2, 0.55], [3, 0.4], [4, 0.22], [5, 0.14], [6, 0.08]] : [[1, 1], [2, 0.4], [3, 0.18], [4, 0.08]]).forEach(([h, a]) => {
     const o = synth.createOscillator(), og = synth.createGain(); o.frequency.value = f * h; og.gain.value = a; o.connect(og); og.connect(g); o.start(when); o.stop(when + dur + 0.3);
   });
 }
@@ -912,7 +1162,8 @@ function schedule() {
   const notes = song.notes;
   while (scheduledIdx < notes.length && notes[scheduledIdx].start < t + 0.15 * speed) {
     const n = notes[scheduledIdx];
-    if (n.start >= t - 0.02) pluck(n.pitch, synth.currentTime + Math.max(0, (n.start - t) / speed), n.dur / speed, n.vel || 90);
+    const pp = playedPitch(n);
+    if (n.start >= t - 0.02 && pp !== null) pluck(pp, synth.currentTime + Math.max(0, (n.start - t) / speed), n.dur / speed, n.vel || 90);
     scheduledIdx++;
   }
 }
@@ -954,7 +1205,7 @@ function hitTest(px, py) {
   }
   return best ? best.n : null;
 }
-function previewNote(n) { ensureSynth(); if (synth) pluck(n.pitch, synth.currentTime + 0.01, Math.min(0.5, Math.max(0.15, n.dur)), Math.max(70, n.vel || 90)); }
+function previewNote(n) { ensureSynth(); if (synth) pluck(playedPitch(n) ?? n.pitch, synth.currentTime + 0.01, Math.min(0.5, Math.max(0.15, n.dur)), Math.max(70, n.vel || 90)); }
 function clickAt(p, add) {
   const n = hitTest(p.x, p.y);
   if (!n) { if (!add) sel = new Set(); updateEditUI(); draw(); return; }
@@ -979,8 +1230,9 @@ function boxSelect() {
     if (down.mode === 'pending' && Math.hypot(p.x - down.x, p.y - down.y) > 4) { down.mode = down.boxy ? 'box' : 'scrub'; if (playing) stop(); }
     if (down.mode === 'scrub') {
       stg.style.cursor = 'grabbing';
-      const pps = (cv.clientHeight - Math.min(110, cv.clientHeight * 0.22)) / LEAD;
-      t = Math.max(-1, Math.min(song.end, down.t0 + (p.y - down.y) / pps)); resync(); draw();
+      if (isTab()) t = Math.max(-1, Math.min(song.end, down.t0 - (p.x - down.x) / TAB_PPS));
+      else { const pps = (cv.clientHeight - Math.min(110, cv.clientHeight * 0.22)) / LEAD; t = Math.max(-1, Math.min(song.end, down.t0 + (p.y - down.y) / pps)); }
+      resync(); draw();
     } else if (down.mode === 'box') { box = { x0: down.x, y0: down.y, x1: p.x, y1: p.y }; draw(); }
   });
   stg.addEventListener('pointerup', e => {
@@ -1014,7 +1266,7 @@ function removeTiny() { const next = song.notes.filter(n => !isTiny(n)), k = son
 function setStatus(text, ok) { $('status').textContent = text; $('status').className = 'status' + (ok ? ' saved' : ''); }
 function updateEditUI() {
   const on = !!song;
-  for (const id of ['play', 'restart', 'dl', 'boxmode']) $(id).disabled = !on;
+  for (const id of ['play', 'restart', 'dl', 'dltab', 'boxmode']) $(id).disabled = !on;
   if (!on) return;
   $('undo').disabled = !undoStack.length; $('redo').disabled = !redoStack.length;
   const k = sel.size; $('del').disabled = !k; $('del').textContent = k ? `Delete ${k} note${k > 1 ? 's' : ''}` : 'Delete';
@@ -1023,7 +1275,14 @@ function updateEditUI() {
   $('tinydel').disabled = !tk; $('tinydel').textContent = tk ? `Remove ${tk} tiny note${tk > 1 ? 's' : ''}` : 'No tiny notes';
   $('tinymsv').textContent = tinyMs + ' ms'; $('lg-tiny').hidden = !tinyShown();
   let info = '';
-  if (k === 1) { const n = [...sel][0]; info = `${nname(n.pitch)} · at ${n.start.toFixed(2)} s · ${Math.round(n.dur * 1000)} ms long · loudness ${n.vel}`; }
+  if (k === 1) {
+    const n = [...sel][0];
+    info = `${nname(n.pitch)} · at ${n.start.toFixed(2)} s · ${Math.round(n.dur * 1000)} ms long · loudness ${n.vel}`;
+    if (isTab()) {
+      const a = arrangement().map.get(n), names = stringNames(openStrings());
+      info += !a || a.unplayable ? ' · left out of the tab' : ` · ${names[a.s]} string, fret ${a.f}${a.transposed ? ` (played as ${nname(a.p)})` : ''}`;
+    }
+  }
   else if (k > 1) info = `${k} notes selected`;
   $('selinfo').textContent = info;
 }
@@ -1040,20 +1299,50 @@ $('tinyms').oninput = e => { tinyMs = +e.target.value; try { localStorage.setIte
 $('tinyshow').onchange = () => { updateEditUI(); draw(); };
 
 /* download */
-$('dl').onclick = async () => {
-  if (!song || !song.notes.length) { toast('There are no notes to download.'); return; }
-  const base = piece.title.replace(/[\\/:*?"<>|]+/g, '').trim() || 'notes';
-  const bytes = midiBytes(song.notes);
+// Inside claude.ai, downloads go through the viewer (which accepts .zip and .txt but not .mid); elsewhere a plain link works.
+async function saveFile(filename, data, mime, zipInViewer) {
   const dl = await downloadsP;
   if (dl) {
-    try { await dl.save({ filename: `${base} MIDI.zip`, data: new Blob([makeZip(base + '.mid', bytes)]) }); toast(`Downloaded. Open the .zip to get ${base}.mid`); }
+    const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+    const name = zipInViewer ? filename.replace(/\.[^.]+$/, '') + '.zip' : filename;
+    try { await dl.save({ filename: name, data: new Blob([zipInViewer ? makeZip(filename, bytes) : bytes]) }); toast(zipInViewer ? `Downloaded. Open the .zip to get ${filename}` : `Downloaded ${filename}`); }
     catch (e) { if (e && e.code === 'declined') return; toast(e && e.code === 'rate_limited' ? 'A download is already waiting for your answer.' : 'Downloads aren\'t available in this view.'); }
     return;
   }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'audio/midi' })); a.download = base + '.mid';
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: mime })); a.download = filename;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast(`Downloaded ${base}.mid`);
+  toast(`Downloaded ${filename}`);
+}
+const baseName = () => (piece.title.replace(/[\\/:*?"<>|]+/g, '').trim() || 'notes') + (isTab() ? ' (guitar)' : '');
+$('dl').onclick = () => {
+  if (!song || !song.notes.length) { toast('There are no notes to download.'); return; }
+  const notes = song.notes.map(n => ({ ...n, pitch: playedPitch(n) })).filter(n => n.pitch !== null);
+  saveFile(baseName() + '.mid', midiBytes(notes, 120, ins().program), 'audio/midi', true);
 };
+$('dltab').onclick = () => {
+  if (!song || !song.notes.length) { toast('There are no notes to download.'); return; }
+  const tun = INSTRUMENTS.guitar.tunings[tuningKey];
+  saveFile(baseName() + ' tab.txt', tabText(piece.title + ' (guitar tab)', arrangement(), INSTRUMENTS.guitar.tunings[tuningKey].open, capo, tun.label), 'text/plain', false);
+};
+
+/* instrument switch, tuning and capo */
+for (const [k, v] of Object.entries(INSTRUMENTS.guitar.tunings)) $('tuning').add(new Option(v.label, k));
+for (let c = 0; c <= 9; c++) $('capo').add(new Option(c ? `Fret ${c}` : 'None', c));
+$('tuning').value = tuningKey; $('capo').value = capo;
+function setInstrument(name) {
+  instrument = name;
+  try { localStorage.setItem('a2p.instrument', name); } catch (e) {}
+  document.querySelectorAll('.seg [data-ins]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.ins === name)));
+  document.querySelectorAll('[data-for]').forEach(el => { el.hidden = el.dataset.for !== name; });
+  $('dl').textContent = name === 'piano' ? 'Download MIDI' : 'Download MIDI (guitar)';
+  hoverNote = null;
+  const was = playing; if (was) stop();
+  renderStats(); updateEditUI(); resize();
+  if (was) start();
+}
+document.querySelectorAll('.seg [data-ins]').forEach(b => b.onclick = () => setInstrument(b.dataset.ins));
+$('tuning').onchange = e => { tuningKey = e.target.value; try { localStorage.setItem('a2p.tuning', tuningKey); } catch (err) {} renderStats(); updateEditUI(); draw(); };
+$('capo').onchange = e => { capo = +e.target.value; try { localStorage.setItem('a2p.capo', capo); } catch (err) {} renderStats(); updateEditUI(); draw(); };
 
 /* keyboard */
 document.addEventListener('click', e => { const b = e.target.closest('button, input[type=checkbox]'); if (b) b.blur(); });
@@ -1094,6 +1383,7 @@ async function boot() {
     setPiece({ title: 'Für Elise (example)', engine: 'basicpitch', offset: 0, original: SAMPLE_NOTES, recName: rec ? rec.name : null, sample: true }, SAMPLE_NOTES);
     $('txstatus').textContent = 'This is an example. Drop your own recording above to start.';
   }
+  setInstrument(instrument);
   drawWave(); updateGoLabel();
 }
 boot();
