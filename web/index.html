@@ -666,6 +666,7 @@ async function loadFile(file) {
 function setRecording(r) {
   if (rec && rec.url) URL.revokeObjectURL(rec.url);
   rec = { ...r, url: URL.createObjectURL(r.blob), duration: r.pcm.length / SR };
+  wavePeaks = null; // the cached waveform belongs to the previous recording
   recAudio.src = rec.url;
   $('recname').textContent = r.name;
   $('rechint').textContent = 'Drop another file to replace it.';
