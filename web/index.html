@@ -1,51 +1,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Audio to Notes</title>
-<script>try { const t = localStorage.getItem('a2p.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script>try { const t = localStorage.getItem('a2p.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; const c = localStorage.getItem('a2p.scheme'); if (/^(cobalt|lagoon|encore|citrus|grove)$/.test(c || '')) document.documentElement.dataset.scheme = c; } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
 /* Layout: one working column. Step 1 (recording + cut) sits above step 2, the instrument view, which is the hero.
-   Look: bright and airy. White cards float on a softly tinted canvas, controls are pills grouped into quiet toolbars,
-   one vivid cobalt accent carries every primary action. */
+   Look: bright and airy. White cards on a softly tinted canvas, pill controls in quiet toolbars, one vivid accent.
+   Five color themes (data-scheme), each with light and dark (data-theme, or the system setting when unset).
+   Accent-derived tokens are computed from --accent so every theme gets matching hovers, rings and glows. */
 :root {
-  --bg: #f3f5fa; --bg-tint: #e6ecff; --surface: #ffffff; --raised: #f1f3f8; --sunken: #f6f7fb; --line: #e3e7ef; --line-strong: #cfd5e1;
-  --fg: #141824; --muted: #5d6576; --faint: #8a91a1;
-  --accent: #3461ff; --accent-hover: #2550f0; --accent-fg: #ffffff; --accent-soft: #e9eeff; --accent-ring: rgba(52, 97, 255, 0.35);
-  --rh: #3b7ff0; --lh: #e7812a; --noise: #e0384a; --noise-soft: #fdecee; --ok: #12925a;
-  --roll-bg: #edf0f6; --roll-grid: rgba(20, 30, 50, 0.08); --hit: rgba(52, 97, 255, 0.55);
-  --white-key: #fdfdfe; --black-key: #1d2129; --key-label: #8a91a0; --wave: #97a3ba; --wave-cut: #d5dae4;
-  --shadow-card: 0 1px 2px rgba(20, 28, 50, 0.04), 0 10px 30px rgba(20, 28, 50, 0.06);
-  --shadow-btn: 0 1px 2px rgba(20, 28, 50, 0.06);
-  --shadow-primary: 0 1px 2px rgba(52, 97, 255, 0.3), 0 6px 16px rgba(52, 97, 255, 0.22);
+  --bg: #f3f5fa; --surface: #ffffff; --raised: #f1f3f8; --sunken: #f6f7fb; --line: #e3e7ef; --line-strong: #cfd5e1; --fg: #141824; --muted: #5d6576; --faint: #8a91a1; --accent: #3461ff; --accent-fg: #ffffff; --accent-soft: #e9eeff; --rh: #3b7ff0; --lh: #e7812a; --roll-bg: #edf0f6; --wave: #97a3ba; --wave-cut: #d5dae4;
+  --noise: #e0384a; --noise-soft: #fdecee; --ok: #12925a; --roll-grid: rgba(20, 30, 50, 0.08); --white-key: #fdfdfe; --black-key: #1d2129; --key-label: #8a91a0; --shadow-card: 0 1px 2px rgba(20, 28, 50, 0.04), 0 10px 30px rgba(20, 28, 50, 0.06); --shadow-btn: 0 1px 2px rgba(20, 28, 50, 0.06);
+  --accent-hover: color-mix(in srgb, var(--accent) 86%, var(--fg));
+  --accent-ring: color-mix(in srgb, var(--accent) 38%, transparent);
+  --bg-tint: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  --hit: color-mix(in srgb, var(--accent) 60%, transparent);
+  --shadow-primary: 0 1px 2px color-mix(in srgb, var(--accent) 30%, transparent), 0 6px 16px color-mix(in srgb, var(--accent) 24%, transparent);
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --radius: 12px; --radius-card: 20px;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0b0e15; --bg-tint: #141c33; --surface: #131824; --raised: #1b2130; --sunken: #0f131c; --line: #232a3a; --line-strong: #323b4f;
-  --fg: #eceff6; --muted: #a0a8b9; --faint: #6f788b;
-  --accent: #5b82ff; --accent-hover: #7896ff; --accent-fg: #ffffff; --accent-soft: #1c2747; --accent-ring: rgba(91, 130, 255, 0.45);
-  --rh: #4f9dff; --lh: #ff9f43; --noise: #ff5d73; --noise-soft: #3a1820; --ok: #3ddc97;
-  --roll-bg: #090b10; --roll-grid: rgba(255, 255, 255, 0.05); --hit: rgba(91, 130, 255, 0.65);
-  --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --wave: #5f6b82; --wave-cut: #262d3b;
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px rgba(0, 0, 0, 0.35);
-  --shadow-btn: none; --shadow-primary: 0 6px 18px rgba(91, 130, 255, 0.28);
-  color-scheme: dark;
-} }
-:root[data-theme="dark"] {
-  --bg: #0b0e15; --bg-tint: #141c33; --surface: #131824; --raised: #1b2130; --sunken: #0f131c; --line: #232a3a; --line-strong: #323b4f;
-  --fg: #eceff6; --muted: #a0a8b9; --faint: #6f788b;
-  --accent: #5b82ff; --accent-hover: #7896ff; --accent-fg: #ffffff; --accent-soft: #1c2747; --accent-ring: rgba(91, 130, 255, 0.45);
-  --rh: #4f9dff; --lh: #ff9f43; --noise: #ff5d73; --noise-soft: #3a1820; --ok: #3ddc97;
-  --roll-bg: #090b10; --roll-grid: rgba(255, 255, 255, 0.05); --hit: rgba(91, 130, 255, 0.65);
-  --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --wave: #5f6b82; --wave-cut: #262d3b;
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px rgba(0, 0, 0, 0.35);
-  --shadow-btn: none; --shadow-primary: 0 6px 18px rgba(91, 130, 255, 0.28);
-  color-scheme: dark;
-}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0b0e15; --surface: #131824; --raised: #1b2130; --sunken: #0f131c; --line: #232a3a; --line-strong: #323b4f; --fg: #eceff6; --muted: #a0a8b9; --faint: #6f788b; --accent: #5b82ff; --accent-fg: #ffffff; --accent-soft: #1c2747; --rh: #4f9dff; --lh: #ff9f43; --roll-bg: #090b10; --wave: #5f6b82; --wave-cut: #262d3b; --noise: #ff5d73; --noise-soft: #3a1820; --ok: #3ddc97; --roll-grid: rgba(255, 255, 255, 0.05); --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px rgba(0, 0, 0, 0.35); --shadow-btn: none; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #0b0e15; --surface: #131824; --raised: #1b2130; --sunken: #0f131c; --line: #232a3a; --line-strong: #323b4f; --fg: #eceff6; --muted: #a0a8b9; --faint: #6f788b; --accent: #5b82ff; --accent-fg: #ffffff; --accent-soft: #1c2747; --rh: #4f9dff; --lh: #ff9f43; --roll-bg: #090b10; --wave: #5f6b82; --wave-cut: #262d3b; --noise: #ff5d73; --noise-soft: #3a1820; --ok: #3ddc97; --roll-grid: rgba(255, 255, 255, 0.05); --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px rgba(0, 0, 0, 0.35); --shadow-btn: none; color-scheme: dark; }
+:root[data-scheme="lagoon"] { --bg: #ecf6f4; --surface: #ffffff; --raised: #eaf3f1; --sunken: #f3f9f8; --line: #d8e8e5; --line-strong: #c2d8d4; --fg: #0f2624; --muted: #4f6966; --faint: #7f9895; --accent: #0e8f86; --accent-fg: #ffffff; --accent-soft: #d9f1ed; --rh: #12a39c; --lh: #ff6f59; --roll-bg: #e3f0ed; --wave: #8fb3ae; --wave-cut: #d0e2df; }
+@media (prefers-color-scheme: dark) { :root[data-scheme="lagoon"]:not([data-theme="light"]) { --bg: #061312; --surface: #0d1f1e; --raised: #142a29; --sunken: #091817; --line: #1b3533; --line-strong: #284846; --fg: #e6f4f2; --muted: #93b3af; --faint: #64817d; --accent: #2cc9bb; --accent-fg: #04211e; --accent-soft: #123331; --rh: #2fd0c4; --lh: #ff8a73; --roll-bg: #040c0c; --wave: #4f7a75; --wave-cut: #1a2f2d; } }
+:root[data-scheme="lagoon"][data-theme="dark"] { --bg: #061312; --surface: #0d1f1e; --raised: #142a29; --sunken: #091817; --line: #1b3533; --line-strong: #284846; --fg: #e6f4f2; --muted: #93b3af; --faint: #64817d; --accent: #2cc9bb; --accent-fg: #04211e; --accent-soft: #123331; --rh: #2fd0c4; --lh: #ff8a73; --roll-bg: #040c0c; --wave: #4f7a75; --wave-cut: #1a2f2d; }
+:root[data-scheme="encore"] { --bg: #faf3f7; --surface: #ffffff; --raised: #f6ecf2; --sunken: #fcf7fa; --line: #efdde7; --line-strong: #e0c7d4; --fg: #24101b; --muted: #6e5562; --faint: #9c8591; --accent: #d6246e; --accent-fg: #ffffff; --accent-soft: #fce4ee; --rh: #7a5cff; --lh: #ff9b3d; --roll-bg: #f3e9ef; --wave: #b496a6; --wave-cut: #ead8e1; }
+@media (prefers-color-scheme: dark) { :root[data-scheme="encore"]:not([data-theme="light"]) { --bg: #110910; --surface: #1d1219; --raised: #261823; --sunken: #150c13; --line: #33222d; --line-strong: #47303f; --fg: #f6e9f0; --muted: #b597a7; --faint: #826675; --accent: #ff4f93; --accent-fg: #ffffff; --accent-soft: #3a1528; --rh: #9b84ff; --lh: #ffad5c; --roll-bg: #0b060a; --wave: #7d5f70; --wave-cut: #2c1d26; } }
+:root[data-scheme="encore"][data-theme="dark"] { --bg: #110910; --surface: #1d1219; --raised: #261823; --sunken: #150c13; --line: #33222d; --line-strong: #47303f; --fg: #f6e9f0; --muted: #b597a7; --faint: #826675; --accent: #ff4f93; --accent-fg: #ffffff; --accent-soft: #3a1528; --rh: #9b84ff; --lh: #ffad5c; --roll-bg: #0b060a; --wave: #7d5f70; --wave-cut: #2c1d26; }
+:root[data-scheme="citrus"] { --bg: #f2f5fa; --surface: #ffffff; --raised: #edf1f7; --sunken: #f6f8fb; --line: #dde3ee; --line-strong: #c9d2e1; --fg: #13213d; --muted: #55607a; --faint: #8690a6; --accent: #e8600a; --accent-fg: #ffffff; --accent-soft: #ffeedd; --rh: #2457d6; --lh: #f2a10f; --roll-bg: #e8edf5; --wave: #94a1bb; --wave-cut: #d6dde9; }
+@media (prefers-color-scheme: dark) { :root[data-scheme="citrus"]:not([data-theme="light"]) { --bg: #0a1224; --surface: #111c35; --raised: #182543; --sunken: #0d162b; --line: #22304f; --line-strong: #2f4066; --fg: #eef2fb; --muted: #9aa6c2; --faint: #6a7694; --accent: #ff8a2a; --accent-fg: #1a0e02; --accent-soft: #33220f; --rh: #5b8cff; --lh: #ffc23d; --roll-bg: #070d1a; --wave: #56658a; --wave-cut: #1d2842; } }
+:root[data-scheme="citrus"][data-theme="dark"] { --bg: #0a1224; --surface: #111c35; --raised: #182543; --sunken: #0d162b; --line: #22304f; --line-strong: #2f4066; --fg: #eef2fb; --muted: #9aa6c2; --faint: #6a7694; --accent: #ff8a2a; --accent-fg: #1a0e02; --accent-soft: #33220f; --rh: #5b8cff; --lh: #ffc23d; --roll-bg: #070d1a; --wave: #56658a; --wave-cut: #1d2842; }
+:root[data-scheme="grove"] { --bg: #f0f5ef; --surface: #ffffff; --raised: #ebf2ea; --sunken: #f5f9f4; --line: #dbe7da; --line-strong: #c5d6c6; --fg: #14231a; --muted: #57695d; --faint: #879a8c; --accent: #1d8f55; --accent-fg: #ffffff; --accent-soft: #ddf1e4; --rh: #2a9d68; --lh: #e8a321; --roll-bg: #e6eee6; --wave: #95ad9b; --wave-cut: #d3e1d4; }
+@media (prefers-color-scheme: dark) { :root[data-scheme="grove"]:not([data-theme="light"]) { --bg: #08120c; --surface: #102017; --raised: #172a1e; --sunken: #0b170f; --line: #1f3527; --line-strong: #2c4936; --fg: #e8f3ec; --muted: #95ae9e; --faint: #67806f; --accent: #3fcf83; --accent-fg: #04170b; --accent-soft: #16301f; --rh: #46d08d; --lh: #ffbf47; --roll-bg: #050c08; --wave: #557a62; --wave-cut: #1b2d21; } }
+:root[data-scheme="grove"][data-theme="dark"] { --bg: #08120c; --surface: #102017; --raised: #172a1e; --sunken: #0b170f; --line: #1f3527; --line-strong: #2c4936; --fg: #e8f3ec; --muted: #95ae9e; --faint: #67806f; --accent: #3fcf83; --accent-fg: #04170b; --accent-soft: #16301f; --rh: #46d08d; --lh: #ffbf47; --roll-bg: #050c08; --wave: #557a62; --wave-cut: #1b2d21; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { background: var(--bg); }
@@ -64,7 +55,6 @@ header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .logo i:nth-child(1) { height: 60%; } .logo i:nth-child(2) { height: 100%; } .logo i:nth-child(3) { height: 40%; } .logo i:nth-child(4) { height: 80%; }
 header h1 { font: 700 24px/1.1 var(--font-display); margin: 0; letter-spacing: -0.02em; }
 header p { margin: 3px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
-.theme-toggle { margin-left: auto; }
 
 /* cards */
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 20px; display: flex; flex-direction: column;
@@ -167,6 +157,25 @@ footer a { color: inherit; }
 #toast button { height: 30px; background: transparent; color: inherit; border-color: currentColor; box-shadow: none; }
 #toast button:hover { background: transparent; opacity: .8; }
 
+/* theme switcher: two icons in one pill; the palette reveals five color dots to its right */
+.tswitch { margin-left: auto; display: inline-flex; align-items: center; height: 42px; padding: 0 4px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-btn); }
+.tswitch .ib { width: 32px; height: 32px; min-width: 32px; padding: 0; margin: 0; border: 0; border-radius: 50%; background: transparent;
+  box-shadow: none; display: grid; place-items: center; color: var(--muted); }
+.tswitch .ib:hover:not(:disabled) { background: var(--raised); color: var(--fg); }
+.tswitch #palbtn { color: var(--accent); }
+.tswitch .ib:focus-visible, .tdot:focus-visible { box-shadow: 0 0 0 3px var(--accent-ring); }
+.tdots { display: flex; align-items: center; overflow: hidden; max-width: 0; opacity: 0; transition: max-width .35s cubic-bezier(.2,.8,.2,1), opacity .25s; }
+.tswitch.open .tdots { max-width: 180px; opacity: 1; }
+.tdot { width: 22px; height: 22px; min-width: 22px; padding: 0; margin: 0 4px; border: 0; border-radius: 50%; background: var(--dl); cursor: pointer;
+  box-shadow: none; transform: translateX(-24px) scale(.4); opacity: 0; transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .25s, box-shadow .15s; }
+.tswitch.open .tdot { transform: none; opacity: 1; }
+.tdot:hover:not(:disabled) { background: var(--dl); }
+.tdot[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--dl); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tdot { background: var(--dd); } :root:not([data-theme="light"]) .tdot[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--dd); } }
+:root[data-theme="dark"] .tdot { background: var(--dd); }
+:root[data-theme="dark"] .tdot[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--dd); }
+.tdiv { width: 1px; height: 20px; background: var(--line); margin: 0 3px; }
 /* advanced settings: collapsed by default so a new user sees one path */
 .adv { border-top: 1px solid var(--line); padding-top: 6px; }
 .adv summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 600; font-size: 14px;
@@ -200,7 +209,12 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
         <p>Turn a recording into notes you can play on piano or guitar. Everything runs in your browser; your audio is never uploaded.</p>
       </div>
     </div>
-    <button class="theme-toggle" id="theme" title="Switch between light and dark">☾ Dark</button>
+    <div class="tswitch" id="tswitch">
+      <button class="ib" id="palbtn" title="Color theme" aria-label="Color theme" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25"/><circle cx="8.5" cy="10.5" r="1"/><circle cx="12.5" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/></svg></button>
+      <div class="tdots" id="tdots" role="group" aria-label="Color themes"><button class="tdot" data-scheme="cobalt" title="Cobalt" aria-label="Cobalt theme" style="--dl:#3461ff;--dd:#5b82ff;transition-delay:0ms"></button><button class="tdot" data-scheme="lagoon" title="Lagoon" aria-label="Lagoon theme" style="--dl:#0e8f86;--dd:#2cc9bb;transition-delay:40ms"></button><button class="tdot" data-scheme="encore" title="Encore" aria-label="Encore theme" style="--dl:#d6246e;--dd:#ff4f93;transition-delay:80ms"></button><button class="tdot" data-scheme="citrus" title="Citrus" aria-label="Citrus theme" style="--dl:#e8600a;--dd:#ff8a2a;transition-delay:120ms"></button><button class="tdot" data-scheme="grove" title="Grove" aria-label="Grove theme" style="--dl:#1d8f55;--dd:#3fcf83;transition-delay:160ms"></button></div>
+      <span class="tdiv" aria-hidden="true"></span>
+      <button class="ib" id="theme" title="Light or dark"></button>
+    </div>
   </header>
 
   <section class="panel" id="p-rec" aria-labelledby="h-rec">
@@ -215,7 +229,7 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
         <span class="field" id="cutlen"></span>
       </div>
       <div id="wavebox"><canvas id="wave" aria-label="Waveform. Drag the handles to cut the start and end."></canvas></div>
-      <p class="hint">Drag the blue handles to skip any talking or silence at the start or end.</p>
+      <p class="hint">Drag the handles to skip any talking or silence at the start or end.</p>
     </div>
     <div class="row">
       <button class="primary big" id="go">Transcribe</button>
@@ -958,11 +972,21 @@ let C = null;
 const readColors = () => { const s = getComputedStyle(document.documentElement); C = {}; for (const k of ['roll-bg', 'roll-grid', 'hit', 'rh', 'lh', 'noise', 'white-key', 'black-key', 'key-label', 'wave', 'wave-cut', 'accent', 'fg', 'muted', 'raised']) C[k] = s.getPropertyValue('--' + k).trim(); };
 readColors();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); drawWave(); });
-new MutationObserver(() => { readColors(); draw(); drawWave(); syncThemeButton(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
+new MutationObserver(() => { readColors(); draw(); drawWave(); syncThemeButton(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'class', 'style'] });
 
 /* light / dark: follows the system until the viewer picks one */
 const currentTheme = () => { const d = document.documentElement.dataset.theme; return d === 'light' || d === 'dark' ? d : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); };
-function syncThemeButton() { const dark = currentTheme() === 'dark'; $('theme').textContent = dark ? '☀ Light' : '☾ Dark'; $('theme').setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode'); }
+const ICON = {
+  moon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></svg>',
+};
+function syncThemeButton() {
+  const dark = currentTheme() === 'dark';
+  $('theme').innerHTML = dark ? ICON.sun : ICON.moon;
+  $('theme').setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  const sc = document.documentElement.dataset.scheme || 'cobalt';
+  document.querySelectorAll('.tdot').forEach(d => d.setAttribute('aria-pressed', String(d.dataset.scheme === sc)));
+}
 try { const th = localStorage.getItem('a2p.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}
 syncThemeButton();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncThemeButton);
@@ -971,6 +995,18 @@ $('theme').onclick = () => {
   document.documentElement.dataset.theme = th;
   try { localStorage.setItem('a2p.theme', th); } catch (e) {}
 };
+
+/* color themes: the palette button reveals five dots; picking one recolors everything, including the canvases */
+const setSwitchOpen = open => { $('tswitch').classList.toggle('open', open); $('palbtn').setAttribute('aria-expanded', String(open)); };
+$('palbtn').onclick = e => { e.stopPropagation(); setSwitchOpen(!$('tswitch').classList.contains('open')); };
+$('tdots').onclick = e => {
+  const b = e.target.closest('.tdot'); if (!b) return;
+  e.stopPropagation();
+  document.documentElement.dataset.scheme = b.dataset.scheme;
+  try { localStorage.setItem('a2p.scheme', b.dataset.scheme); } catch (err) {}
+};
+document.addEventListener('click', e => { if (!$('tswitch').contains(e.target)) setSwitchOpen(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('tswitch').classList.contains('open')) setSwitchOpen(false); });
 
 /* advanced settings panels stay closed for new users and remember if someone opened them */
 for (const id of ['adv-rec', 'adv-edit']) {
