@@ -165,6 +165,24 @@ footer a { color: inherit; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 #toast button { height: 30px; background: transparent; color: inherit; border-color: currentColor; box-shadow: none; }
 #toast button:hover { background: transparent; opacity: .8; }
+
+/* advanced settings: collapsed by default so a new user sees one path */
+.adv { border-top: 1px solid var(--line); padding-top: 6px; }
+.adv summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 600; font-size: 14px;
+  padding: 8px 10px 8px 4px; border-radius: 10px; user-select: none; }
+.adv summary::-webkit-details-marker { display: none; }
+.adv summary::before { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); transition: transform .15s; margin-left: 4px; }
+.adv[open] summary::before { transform: rotate(45deg); }
+.adv summary:hover { color: var(--fg); }
+.adv summary:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+.adv-body { display: flex; flex-direction: column; gap: 12px; padding: 8px 0 4px; }
+.adv-label { font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); margin-top: 4px; }
+.tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); font-size: 11px; font-weight: 600; vertical-align: 1px; }
+button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
+.hint { margin: 0; }
+#selrow:has(.selinfo:empty) { display: none; }
+#selrow .selinfo { margin-left: 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media (max-width: 640px) {
   .selinfo { margin-left: 0; flex-basis: 100%; } .sep { display: none; } .push { margin-left: 0; }
@@ -191,28 +209,38 @@ footer a { color: inherit; }
       <label class="btn">Choose file<input type="file" id="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mid,.midi"></label>
     </div>
     <div id="recbody">
-      <div class="row" style="margin-bottom:8px">
+      <div class="row">
         <button id="recplay" title="Listen to the recording">▶ Listen</button>
-        <span class="field">Start at <input type="number" id="cutstart" min="0" step="0.1" value="0"> s</span>
-        <span class="field">End at <input type="number" id="cutend" min="0" step="0.1" value="0"> s</span>
         <span class="field" id="cutlen"></span>
       </div>
       <div id="wavebox"><canvas id="wave" aria-label="Waveform. Drag the handles to cut the start and end."></canvas></div>
-      <p class="hint" style="margin:4px 0 0">Drag the two handles to cut off the start or end. Click the waveform to listen from that point.</p>
-    </div>
-    <div class="engines" role="radiogroup" aria-label="Transcription engine">
-      <label class="engine"><input type="radio" name="engine" value="basicpitch" id="eng-bp" checked>
-        <div><b>Basic Pitch</b><span>A neural network from Spotify, trained on real recordings. Takes longer, usually less noise.</span></div></label>
-      <label class="engine"><input type="radio" name="engine" value="classic" id="eng-classic">
-        <div><b>Classic</b><span>Signal processing, one filter per piano key. Fast, works best on clean recordings.</span></div></label>
+      <p class="hint">Drag the blue handles to skip any talking or silence at the start or end.</p>
     </div>
     <div class="row">
-      <span class="field">Sensitivity <select id="sens" title="How readily a sound counts as a note">
-        <option value="fewer">Fewer notes (strict)</option><option value="balanced" selected>Balanced</option><option value="more">More notes (catches quiet ones)</option></select></span>
-      <button class="primary" id="go">Transcribe</button>
+      <button class="primary big" id="go">Transcribe</button>
       <span id="txstatus"></span>
     </div>
     <div class="progress" id="txprog" hidden><div></div></div>
+    <details class="adv" id="adv-rec">
+      <summary>Advanced settings</summary>
+      <div class="adv-body">
+        <div class="adv-label">Transcription engine</div>
+        <div class="engines" role="radiogroup" aria-label="Transcription engine">
+          <label class="engine"><input type="radio" name="engine" value="basicpitch" id="eng-bp" checked>
+            <div><b>Basic Pitch <span class="tag">Recommended</span></b><span>A neural network from Spotify, trained on real recordings. Usually less noise.</span></div></label>
+          <label class="engine"><input type="radio" name="engine" value="classic" id="eng-classic">
+            <div><b>Classic</b><span>Signal processing, one filter per piano key. Fast, works best on clean recordings.</span></div></label>
+        </div>
+        <div class="row">
+          <span class="field">Sensitivity <select id="sens" title="How readily a sound counts as a note">
+            <option value="fewer">Fewer notes (strict)</option><option value="balanced" selected>Balanced (recommended)</option><option value="more">More notes (catches quiet ones)</option></select></span>
+        </div>
+        <div class="row">
+          <span class="field">Start at <input type="number" id="cutstart" min="0" step="0.1" value="0"> s</span>
+          <span class="field">End at <input type="number" id="cutend" min="0" step="0.1" value="0"> s</span>
+        </div>
+      </div>
+    </details>
   </section>
 
   <section class="panel" id="p-edit" aria-labelledby="h-edit">
@@ -222,10 +250,9 @@ footer a { color: inherit; }
         <button role="tab" id="ins-piano" data-ins="piano" aria-selected="true">Piano</button>
         <button role="tab" id="ins-guitar" data-ins="guitar" aria-selected="false">Guitar</button>
       </div>
-      <span class="field" data-for="guitar" hidden>Tuning <select id="tuning"></select></span>
-      <span class="field" data-for="guitar" hidden>Capo <select id="capo"></select></span>
-      <span class="field" data-for="guitar" hidden>Play <select id="simplify" title="Piano music often has more notes than one guitarist can play">
-        <option value="full">Every note</option><option value="melodybass" selected>Melody + bass</option><option value="melody">Melody only</option></select></span>
+      <span class="push"></span>
+      <button class="soft" id="dl">Download MIDI</button>
+      <button class="soft" id="dltab" data-for="guitar" hidden>Download tab</button>
     </div>
     <div class="toolbar">
       <div class="row">
@@ -233,29 +260,14 @@ footer a { color: inherit; }
           <button class="primary" id="play" style="min-width:92px">▶ Play</button>
           <button class="icon" id="restart" title="Play from the start" aria-label="Play from the start">⟲</button>
         </div>
-        <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="0.75"><span class="num" id="speedv">75%</span></span>
-        <span class="field">Hear <select id="hear"><option value="notes">Notes</option><option value="rec">Recording</option><option value="both">Both</option><option value="none">Nothing</option></select></span>
-        <span class="push"></span>
-        <button class="soft" id="dl">Download MIDI</button>
-        <button class="soft" id="dltab" data-for="guitar" hidden>Download tab</button>
-      </div>
-      <div class="row">
         <div class="group">
           <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
           <button id="redo" title="Redo (⇧⌘Z)">↷ Redo</button>
         </div>
         <button id="del" class="danger" title="Delete the selected notes (⌫)">Delete</button>
-        <button id="boxmode" class="toggle" aria-pressed="false" title="Drag on the roll to select a group of notes">▭ Box select</button>
-        <button id="revert" title="Bring back every transcribed note (you can undo this)">Reset</button>
-        <span class="sep"></span>
-        <label class="check"><input type="checkbox" id="tinyshow" checked> Mark tiny notes</label>
-        <span class="field">≤ <input type="range" id="tinyms" min="50" max="250" step="10" value="80"><span class="num" id="tinymsv">80 ms</span></span>
-        <button id="tinydel" class="danger" title="Delete every note at or under this length (you can undo this)">Remove tiny notes</button>
+        <span class="status push" id="status"></span>
       </div>
-      <div class="row">
-        <span class="status" id="status"></span>
-        <span class="selinfo" id="selinfo"></span>
-      </div>
+      <div class="row" id="selrow"><span class="selinfo" id="selinfo"></span></div>
     </div>
     <div id="stage"><canvas id="cv"></canvas></div>
     <div class="rollbar"><div id="prog"></div></div>
@@ -264,18 +276,45 @@ footer a { color: inherit; }
       <span data-for="piano"><i class="sw" style="background:var(--lh)"></i>Left hand</span>
       <span data-for="guitar" hidden><i class="sw" style="background:var(--rh)"></i>Fret number on that string</span>
       <span data-for="guitar" hidden><i class="sw" style="background:var(--lh)"></i>Moved an octave to fit the guitar</span>
-      <span data-for="guitar" hidden><i class="sw" style="background:var(--muted)"></i>× Too many notes at once, left out of the tab</span>
+      <span data-for="guitar" hidden><i class="sw" style="background:var(--muted)"></i>× Left out of the tab</span>
       <span id="lg-tiny"><i class="sw" style="background:var(--noise)"></i>Tiny note, probably noise</span>
     </div>
-    <div class="hint" data-for="guitar" hidden>
-      Read the tab left to right: each line is a string (thin high e on top) and the number is the fret. The fretboard below shows where to put your fingers right now.
-      Click a number to select that note · <kbd>Shift</kbd>+click or Box select for more · <kbd>⌫</kbd> delete · <kbd>⌘Z</kbd> undo · <kbd>Space</kbd> play/pause · drag the tab sideways to scrub
-    </div>
-    <div class="hint" data-for="piano">
-      Click a note to select it (you'll hear it) · <kbd>Shift</kbd>+click adds more · <kbd>Shift</kbd>+drag or Box select grabs a group ·
-      <kbd>⌫</kbd> delete · <kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo · <kbd>Esc</kbd> deselect · <kbd>Space</kbd> play/pause · drag the roll to scrub
-    </div>
-    <div class="stats" id="stats"></div>
+    <p class="hint" data-for="piano">Click a wrong or noisy note, then press Delete. Undo brings it back.</p>
+    <p class="hint" data-for="guitar" hidden>Each line is a string, thin high e on top; the number is the fret. The fretboard shows where your fingers go right now.</p>
+    <details class="adv" id="adv-edit">
+      <summary>Advanced settings</summary>
+      <div class="adv-body">
+        <div class="adv-label">Playback</div>
+        <div class="row">
+          <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="1"><span class="num" id="speedv">100%</span></span>
+          <span class="field">Hear <select id="hear"><option value="notes">Notes</option><option value="rec">Recording</option><option value="both">Both</option><option value="none">Nothing</option></select></span>
+        </div>
+        <div class="adv-label" data-for="guitar" hidden>Guitar</div>
+        <div class="row" data-for="guitar" hidden>
+          <span class="field">Tuning <select id="tuning"></select></span>
+          <span class="field">Capo <select id="capo"></select></span>
+          <span class="field">Play <select id="simplify" title="Piano music often has more notes than one guitarist can play">
+            <option value="full">Every note</option><option value="melodybass" selected>Melody + bass (recommended)</option><option value="melody">Melody only</option></select></span>
+        </div>
+        <div class="adv-label">Clean up</div>
+        <div class="row">
+          <button id="boxmode" class="toggle" aria-pressed="false" title="Drag on the roll to select a group of notes">▭ Box select</button>
+          <button id="revert" title="Bring back every transcribed note (you can undo this)">Reset all edits</button>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="tinyshow" checked> Mark tiny notes</label>
+          <span class="field">≤ <input type="range" id="tinyms" min="50" max="250" step="10" value="80"><span class="num" id="tinymsv">80 ms</span></span>
+          <button id="tinydel" class="danger" title="Delete every note at or under this length (you can undo this)">Remove tiny notes</button>
+        </div>
+        <div class="adv-label">Shortcuts</div>
+        <div class="hint">
+          <kbd>Shift</kbd>+click adds notes · <kbd>Shift</kbd>+drag selects a group · <kbd>⌫</kbd> delete · <kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo ·
+          <kbd>Esc</kbd> deselect · <kbd>Space</kbd> play/pause · <span data-for="piano">drag the roll up and down to scrub</span><span data-for="guitar" hidden>drag the tab sideways to scrub</span>
+        </div>
+        <div class="adv-label">Details</div>
+        <div class="stats" id="stats"></div>
+      </div>
+    </details>
   </section>
 
   <footer>
@@ -905,7 +944,7 @@ let piece = null;      // { title, engine, offset, original: [notes], recName }
 let song = null;       // { notes, lo, hi, end } — notes is the current (edited) array
 let sel = new Set(), hoverNote = null, box = null, noteRects = [];
 let undoStack = [], redoStack = [];
-let t = 0, playing = false, last = 0, speed = 0.75, scheduledIdx = 0, synth = null;
+let t = 0, playing = false, last = 0, speed = 1, scheduledIdx = 0, synth = null;
 let boxMode = false;
 const recAudio = new Audio(); recAudio.preservesPitch = true;
 const LEAD = 3.0;
@@ -930,6 +969,13 @@ $('theme').onclick = () => {
   document.documentElement.dataset.theme = th;
   try { localStorage.setItem('a2p.theme', th); } catch (e) {}
 };
+
+/* advanced settings panels stay closed for new users and remember if someone opened them */
+for (const id of ['adv-rec', 'adv-edit']) {
+  const d = $(id);
+  try { if (localStorage.getItem('a2p.' + id) === '1') d.open = true; } catch (e) {}
+  d.addEventListener('toggle', () => { try { localStorage.setItem('a2p.' + id, d.open ? '1' : '0'); } catch (e) {} });
+}
 
 /* ================= storage (this browser only) ================= */
 const store = {
@@ -1075,6 +1121,7 @@ document.querySelectorAll('input[name=engine]').forEach(r => r.onchange = () => 
 function updateGoLabel() {
   const edited = song && piece && !piece.sample && song.notes.length !== piece.original.length;
   $('go').disabled = !rec || busy;
+  $('go').hidden = !rec; // nothing to transcribe until a recording is added
   $('go').textContent = busy ? 'Transcribing…' : piece && !piece.sample && piece.engine !== 'midi' ? (edited ? 'Transcribe again (replaces your edits)' : 'Transcribe again') : 'Transcribe';
 }
 $('go').onclick = async () => {
@@ -1556,21 +1603,22 @@ async function boot() {
   $('recbody').hidden = true; updateEditUI(); updateGoLabel();
   const saved = store.get('a2p.piece');
   const savedRec = await idb('readonly', s => s.get('current'));
+  const loadExample = async () => {
+    try {
+      const blob = await (await fetch('sample/fur_elise.mp3')).blob();
+      setRecording({ name: 'Für Elise (example).mp3', blob, pcm: await decodeToMono(await blob.arrayBuffer()) });
+    } catch (e) { /* the example audio is optional */ }
+  };
   if (savedRec && savedRec.blob) {
     try { setRecording({ name: savedRec.name, blob: savedRec.blob, pcm: await decodeToMono(await savedRec.blob.arrayBuffer()) }); } catch (e) { rec = null; }
-  }
+  } else if (saved && saved.recName === 'Für Elise (example).mp3') await loadExample(); // last piece came from the example recording
   if (saved && saved.original && saved.original.length) {
     if (rec) { cut = saved.cut && saved.recName === rec.name ? saved.cut : { start: 0, end: rec.duration }; syncCutInputs(); }
     const ok = (saved.kept || []).filter(i => i >= 0 && i < saved.original.length);
     setPiece({ title: saved.title, engine: saved.engine, offset: saved.offset || 0, original: saved.original, recName: saved.recName }, ok.length === saved.original.length ? saved.original : ok.map(i => saved.original[i]));
     setStatus('Restored from this browser', true);
   } else {
-    if (!rec) {
-      try {
-        const blob = await (await fetch('sample/fur_elise.mp3')).blob();
-        setRecording({ name: 'Für Elise (example).mp3', blob, pcm: await decodeToMono(await blob.arrayBuffer()) });
-      } catch (e) { /* the example audio is optional */ }
-    }
+    if (!rec) await loadExample();
     if (rec) { cut = { start: 0, end: rec.duration }; syncCutInputs(); }
     setPiece({ title: 'Für Elise (example)', engine: 'basicpitch', offset: 0, original: SAMPLE_NOTES, recName: rec ? rec.name : null, sample: true }, SAMPLE_NOTES);
     $('txstatus').textContent = 'This is an example. Drop your own recording above to start.';
