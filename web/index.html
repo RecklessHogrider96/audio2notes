@@ -336,6 +336,7 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
   <footer>
     Basic Pitch is © Spotify AB, used under the <a href="https://github.com/spotify/basic-pitch-ts/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>; its note-finding code is adapted here.
     Your work is kept in this browser only, so it comes back when you reopen this page on the same device.
+    Visits are counted anonymously with <a href="https://www.goatcounter.com" target="_blank" rel="noopener">GoatCounter</a>: no cookies, and your audio and notes are never sent.
   </footer>
 </div>
 <div id="toast" role="status"><span id="toastmsg"></span><button id="toastbtn" hidden>Undo</button></div>
@@ -345,6 +346,19 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
 'use strict';
 const $ = id => document.getElementById(id);
 const tick = () => new Promise(r => setTimeout(r, 0));
+
+/* Anonymous visit and action counts (GoatCounter: no cookies, no personal data).
+   Loaded only on the live GitHub Pages site, so local testing and the claude.ai copy are not counted.
+   Actions send only a fixed name like "transcribe-basicpitch"; never file names, audio or notes. */
+if (location.hostname.endsWith('github.io')) {
+  const gc = document.createElement('script');
+  gc.async = true; gc.src = 'https://gc.zgo.at/count.js';
+  gc.dataset.goatcounter = 'https://drnitro.goatcounter.com/count';
+  document.head.appendChild(gc);
+}
+function track(name) {
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: 'action/' + name, title: name, event: true }); } catch (e) {}
+}
 const SR = 22050;
 
 /* ================= audio decoding ================= */
@@ -1048,6 +1062,7 @@ async function loadFile(file) {
     try {
       const notes = parseMidi(await file.arrayBuffer());
       setPiece({ title: file.name.replace(/\.midi?$/i, ''), engine: 'midi', offset: 0, original: notes, recName: null }, notes);
+      track('open-midi');
       toast(`Opened ${file.name}: ${notes.length} notes`);
     } catch (e) { toast(e.message); }
     return;
@@ -1056,6 +1071,7 @@ async function loadFile(file) {
   try {
     const pcm = await decodeToMono(await file.arrayBuffer());
     setRecording({ name: file.name, blob: file, pcm });
+    track('add-recording');
     cut = { start: 0, end: rec.duration };
     syncCutInputs(); drawWave();
     idb('readwrite', s => s.put({ name: file.name, blob: file }, 'current'));
@@ -1184,6 +1200,7 @@ $('go').onclick = async () => {
     }
     const title = rec.name.replace(/\.[^.]+$/, '') + (cut.start > 0 ? ` (from ${fmt(cut.start)}s)` : '');
     setPiece({ title, engine: eng, offset: cut.start, original: notes, recName: rec.name }, notes);
+    track('transcribe-' + eng);
     $('txstatus').textContent = `Found ${notes.length} notes in ${((performance.now() - t0) / 1000).toFixed(1)} s with ${ENGINE_LABEL[eng]} (${$('sens').selectedOptions[0].textContent.replace(/ \(.*/, '').toLowerCase()}).`;
     $('p-edit').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   } catch (e) {
@@ -1663,10 +1680,12 @@ $('dl').onclick = () => {
   if (!song || !song.notes.length) { toast('There are no notes to download.'); return; }
   const notes = song.notes.map(n => ({ ...n, pitch: playedPitch(n) })).filter(n => n.pitch !== null);
   saveFile(baseName() + '.mid', midiBytes(notes, 120, ins().program), 'audio/midi', true);
+  track('download-midi-' + instrument);
 };
 $('dltab').onclick = () => {
   if (!song || !song.notes.length) { toast('There are no notes to download.'); return; }
   const tun = INSTRUMENTS.guitar.tunings[tuningKey];
+  track('download-tab');
   saveFile(baseName() + ' tab.txt', tabText(piece.title + ' (guitar tab)', arrangement(), INSTRUMENTS.guitar.tunings[tuningKey].open, capo, tun.label), 'text/plain', false);
 };
 
@@ -1685,7 +1704,7 @@ function setInstrument(name) {
   renderStats(); updateEditUI(); resize();
   if (was) start();
 }
-document.querySelectorAll('.seg [data-ins]').forEach(b => b.onclick = () => setInstrument(b.dataset.ins));
+document.querySelectorAll('.seg [data-ins]').forEach(b => b.onclick = () => { if (b.dataset.ins !== instrument) track('view-' + b.dataset.ins); setInstrument(b.dataset.ins); });
 $('tuning').onchange = e => { tuningKey = e.target.value; try { localStorage.setItem('a2p.tuning', tuningKey); } catch (err) {} renderStats(); updateEditUI(); draw(); };
 $('simplify').value = simplifyMode;
 $('simplify').onchange = e => { simplifyMode = e.target.value; try { localStorage.setItem('a2p.simplify', simplifyMode); } catch (err) {} renderStats(); updateEditUI(); draw(); };
