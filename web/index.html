@@ -126,6 +126,7 @@ input[type=number] { width: 78px; height: 36px; font: 500 14px var(--font-mono);
 #drop .what { flex: 1 1 260px; min-width: 0; }
 #drop .what b { display: block; font-weight: 600; overflow-wrap: anywhere; }
 #drop .what span { color: var(--muted); font-size: 13.5px; }
+#recbody { display: flex; flex-direction: column; gap: 12px; }
 #wavebox { position: relative; border-radius: 14px; overflow: hidden; background: var(--sunken); border: 1px solid var(--line); touch-action: none; }
 #wave { display: block; width: 100%; height: 84px; cursor: pointer; }
 .engines { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
@@ -260,6 +261,8 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
           <button class="primary" id="play" style="min-width:92px">▶ Play</button>
           <button class="icon" id="restart" title="Play from the start" aria-label="Play from the start">⟲</button>
         </div>
+        <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="1"><span class="num" id="speedv">100%</span></span>
+        <span class="sep"></span>
         <div class="group">
           <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
           <button id="redo" title="Redo (⇧⌘Z)">↷ Redo</button>
@@ -286,7 +289,6 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
       <div class="adv-body">
         <div class="adv-label">Playback</div>
         <div class="row">
-          <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="1"><span class="num" id="speedv">100%</span></span>
           <span class="field">Hear <select id="hear"><option value="notes">Notes</option><option value="rec">Recording</option><option value="both">Both</option><option value="none">Nothing</option></select></span>
         </div>
         <div class="adv-label" data-for="guitar" hidden>Guitar</div>
