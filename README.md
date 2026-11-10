@@ -1,54 +1,77 @@
 # Audio to Notes
 
-Turn a recording into notes, clean out the noise, and read them as piano keys or guitar tab.
+Turn a music recording into notes you can play on **piano** or **guitar**.
 
-## Web app (any device)
+**Try it:** https://recklesshogrider96.github.io/audio2notes/
 
-`web/index.html` is the whole app. It runs in the browser: drop an MP3, cut the start and end,
-transcribe with **Basic Pitch** (Spotify's neural network) or **Classic** (signal processing),
-delete noisy notes, and download MIDI. Nothing is uploaded.
+Everything runs in your browser. Your audio is never uploaded.
 
-**Instruments.** The same notes can be shown as a piano roll or as **guitar tab** with a live fretboard.
-For guitar, fingering works the way a player thinks:
-- chords snap to real shapes when the notes fit one (open C, G, D, Am, Em…, E- and A-shape barres, power chords), and their names show above the tab;
-- the hand sits in a 4-fret box and only moves when it has to, so there are few, deliberate position shifts;
-- no chord needs more than a 4-fret stretch (a far-away bass moves up an octave, or an inner note is left out);
-- **Play: Every note / Melody + bass (default) / Melody only** adapts dense piano parts for one guitarist.
+## How it works
 
-On the test clip, hand position changes went from 11.3 to 4.7 per 10 s (Every note), 3.7 (Melody + bass) and 0.5 (Melody only),
-and the widest stretch went from 7 frets to 4. Tunings: Standard, Drop D, Half step down, DADGAD, plus a capo.
-Downloads: tab as `.txt` and MIDI with a guitar sound. Instruments are data (`INSTRUMENTS` in
-`web/index.html`), so bass or ukulele is one more entry with its open-string pitches.
+1. **Add a recording.** Drop in an MP3, WAV or M4A. Drag the handles to skip silence at the start or end.
+2. **Transcribe.** An AI model (Spotify's Basic Pitch) finds the notes.
+3. **Clean up.** Click any wrong or noisy note and press Delete. Undo brings it back.
+4. **Pick an instrument.** See the notes as a piano roll or as guitar tab with a fretboard.
+5. **Download.** Save a MIDI file, or a text tab for guitar.
 
-- **Live at https://recklesshogrider96.github.io/audio2notes/**
-- Every push to `main` that changes `web/` republishes the site (see `.github/workflows/pages.yml`).
-- To run it locally: `cd web && python3 -m http.server 8000`, then open http://localhost:8000
-  (opening `index.html` directly from disk can't load the Basic Pitch model).
-- `web/model/` is the Basic Pitch model (Apache 2.0, see `LICENSE-basic-pitch.txt`). The weights file is named `.wasm`
-  only so artifact hosting will serve it; it is the original `group1-shard1of1.bin`.
+Your work is saved in your browser, so it's still there when you come back.
 
-Accuracy on the synthetic test pieces (F1, 1.0 is perfect):
+## Features
+
+- **Two transcription engines:** Basic Pitch (default, best on real recordings) or Classic (fast, best on clean audio).
+- **Noise clean-up:** tiny notes that are usually noise are marked in red and can be removed in one click.
+- **Guitar tab that's playable:**
+  - uses real chord shapes (open C, G, Am, barre chords) and names them above the tab;
+  - keeps your hand in one position and never needs more than a 4-fret stretch;
+  - can simplify piano music to *melody + bass* or *melody only*;
+  - supports Standard, Drop D, Half step down and DADGAD tunings, plus a capo.
+- **Play it back** as notes, as the original recording, or both, at any speed.
+- **Five color themes**, each with light and dark mode.
+- **Animated logo** that moves with whatever is playing.
+- **Simple by default:** extra options live under *Advanced settings*.
+
+## Accuracy
+
+Tested on synthetic recordings where the correct notes are known (1.0 = perfect):
 
 | Engine | Für Elise | Ode to Joy |
 |---|---|---|
-| Classic | 0.90 | 0.95 |
 | Basic Pitch, Balanced (default) | 0.93 | 0.95 |
 | Basic Pitch, Fewer notes | 0.98 | 0.98 |
+| Classic | 0.90 | 0.95 |
 
-## Mac command-line version
+Real recordings with pedal, room echo or several instruments will score lower.
 
-Needs Python 3 and ffmpeg (`brew install ffmpeg`).
+## Run it yourself
+
+The whole app is one file, `web/index.html`, plus the AI model in `web/model/`.
+
+```bash
+cd web && python3 -m http.server 8000
+```
+
+Then open http://localhost:8000. Opening `index.html` directly from disk won't work, because the browser blocks loading the model that way.
+
+**Publishing:** every push to `main` that changes `web/` updates the live site automatically (see `.github/workflows/pages.yml`).
+
+## Mac command-line version (older)
+
+The original Python version. It needs Python 3 and ffmpeg (`brew install ffmpeg`).
 
 ```bash
 python3 -m venv venv && venv/bin/pip install numpy scipy
-./run.sh "/path/to/clip.mp3" 8      # 8 = cut the first 8 seconds (optional)
+./run.sh "/path/to/clip.mp3" 8
 ```
 
-`run.sh` transcribes the clip and opens the note editor in your browser. Save writes `out/<name>_edited.mid`.
+The `8` is optional and cuts the first 8 seconds. This opens a note editor in your browser, and Save writes `out/<name>_edited.mid`.
 
 | File | What it does |
 |---|---|
-| `transcribe.py` | Classic transcriber: MP3 to notes (JSON + MIDI) |
-| `editor.py`, `player_template.html` | Local note editor server and page |
-| `make_test_audio.py` | Synthesizes test recordings with known notes |
+| `transcribe.py` | Classic transcriber: audio to notes and MIDI |
+| `editor.py`, `player_template.html` | The local note editor |
+| `make_test_audio.py` | Makes test recordings with known notes |
 | `evaluate.py` | Scores a transcription against the known notes |
+
+## Credits
+
+Basic Pitch is © Spotify AB, used under the Apache License 2.0 (see `web/model/LICENSE-basic-pitch.txt`). The model's weights file is renamed to `.wasm` only so some hosts will serve it; it is unchanged.
