@@ -9,9 +9,14 @@ transcribe with **Basic Pitch** (Spotify's neural network) or **Classic** (signa
 delete noisy notes, and download MIDI. Nothing is uploaded.
 
 **Instruments.** The same notes can be shown as a piano roll or as **guitar tab** with a live fretboard.
-For guitar, each note or chord gets a string and fret chosen to keep chords within a 4-fret reach and the
-hand moving as little as possible; notes outside the guitar's range move an octave, and chords with more
-notes than strings drop the quietest. Tunings: Standard, Drop D, Half step down, DADGAD, plus a capo.
+For guitar, fingering works the way a player thinks:
+- chords snap to real shapes when the notes fit one (open C, G, D, Am, Em…, E- and A-shape barres, power chords), and their names show above the tab;
+- the hand sits in a 4-fret box and only moves when it has to, so there are few, deliberate position shifts;
+- no chord needs more than a 4-fret stretch (a far-away bass moves up an octave, or an inner note is left out);
+- **Play: Every note / Melody + bass (default) / Melody only** adapts dense piano parts for one guitarist.
+
+On the test clip, hand position changes went from 11.3 to 4.7 per 10 s (Every note), 3.7 (Melody + bass) and 0.5 (Melody only),
+and the widest stretch went from 7 frets to 4. Tunings: Standard, Drop D, Half step down, DADGAD, plus a capo.
 Downloads: tab as `.txt` and MIDI with a guitar sound. Instruments are data (`INSTRUMENTS` in
 `web/index.html`), so bass or ukulele is one more entry with its open-string pitches.
 

@@ -1,122 +1,193 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Audio to Notes</title>
+<script>try { const t = localStorage.getItem('a2p.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
-/* Layout: one working column. Step 1 (recording + cut) sits above step 2 (the piano roll editor); the roll is the hero. */
+/* Layout: one working column. Step 1 (recording + cut) sits above step 2, the instrument view, which is the hero.
+   Look: bright and airy. White cards float on a softly tinted canvas, controls are pills grouped into quiet toolbars,
+   one vivid cobalt accent carries every primary action. */
 :root {
-  --bg: #f4f6f9; --surface: #ffffff; --raised: #eef1f5; --line: #d9dee6; --fg: #151922; --muted: #5b6372;
-  --accent: #2563d9; --accent-fg: #ffffff; --rh: #3b7ff0; --lh: #e7812a; --noise: #dc3c4a; --ok: #17905a;
-  --roll-bg: #e7ebf1; --roll-grid: rgba(20, 30, 50, 0.08); --hit: rgba(37, 99, 217, 0.55);
-  --white-key: #fbfcfd; --black-key: #1d2129; --key-label: #8a91a0; --wave: #8b95a7; --wave-cut: #c6ccd6;
+  --bg: #f3f5fa; --bg-tint: #e6ecff; --surface: #ffffff; --raised: #f1f3f8; --sunken: #f6f7fb; --line: #e3e7ef; --line-strong: #cfd5e1;
+  --fg: #141824; --muted: #5d6576; --faint: #8a91a1;
+  --accent: #3461ff; --accent-hover: #2550f0; --accent-fg: #ffffff; --accent-soft: #e9eeff; --accent-ring: rgba(52, 97, 255, 0.35);
+  --rh: #3b7ff0; --lh: #e7812a; --noise: #e0384a; --noise-soft: #fdecee; --ok: #12925a;
+  --roll-bg: #edf0f6; --roll-grid: rgba(20, 30, 50, 0.08); --hit: rgba(52, 97, 255, 0.55);
+  --white-key: #fdfdfe; --black-key: #1d2129; --key-label: #8a91a0; --wave: #97a3ba; --wave-cut: #d5dae4;
+  --shadow-card: 0 1px 2px rgba(20, 28, 50, 0.04), 0 10px 30px rgba(20, 28, 50, 0.06);
+  --shadow-btn: 0 1px 2px rgba(20, 28, 50, 0.06);
+  --shadow-primary: 0 1px 2px rgba(52, 97, 255, 0.3), 0 6px 16px rgba(52, 97, 255, 0.22);
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --radius: 10px;
+  --radius: 12px; --radius-card: 20px;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0e1015; --surface: #161920; --raised: #1d2129; --line: #2a2f3a; --fg: #e8eaf0; --muted: #9aa3b2;
-  --accent: #4f8fff; --accent-fg: #06101f; --rh: #4f9dff; --lh: #ff9f43; --noise: #ff5d73; --ok: #3ddc97;
-  --roll-bg: #0a0c10; --roll-grid: rgba(255, 255, 255, 0.05); --hit: rgba(79, 157, 255, 0.6);
-  --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --wave: #6f7a8d; --wave-cut: #2f3540;
+  --bg: #0b0e15; --bg-tint: #141c33; --surface: #131824; --raised: #1b2130; --sunken: #0f131c; --line: #232a3a; --line-strong: #323b4f;
+  --fg: #eceff6; --muted: #a0a8b9; --faint: #6f788b;
+  --accent: #5b82ff; --accent-hover: #7896ff; --accent-fg: #ffffff; --accent-soft: #1c2747; --accent-ring: rgba(91, 130, 255, 0.45);
+  --rh: #4f9dff; --lh: #ff9f43; --noise: #ff5d73; --noise-soft: #3a1820; --ok: #3ddc97;
+  --roll-bg: #090b10; --roll-grid: rgba(255, 255, 255, 0.05); --hit: rgba(91, 130, 255, 0.65);
+  --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --wave: #5f6b82; --wave-cut: #262d3b;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-btn: none; --shadow-primary: 0 6px 18px rgba(91, 130, 255, 0.28);
   color-scheme: dark;
 } }
 :root[data-theme="dark"] {
-  --bg: #0e1015; --surface: #161920; --raised: #1d2129; --line: #2a2f3a; --fg: #e8eaf0; --muted: #9aa3b2;
-  --accent: #4f8fff; --accent-fg: #06101f; --rh: #4f9dff; --lh: #ff9f43; --noise: #ff5d73; --ok: #3ddc97;
-  --roll-bg: #0a0c10; --roll-grid: rgba(255, 255, 255, 0.05); --hit: rgba(79, 157, 255, 0.6);
-  --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --wave: #6f7a8d; --wave-cut: #2f3540;
+  --bg: #0b0e15; --bg-tint: #141c33; --surface: #131824; --raised: #1b2130; --sunken: #0f131c; --line: #232a3a; --line-strong: #323b4f;
+  --fg: #eceff6; --muted: #a0a8b9; --faint: #6f788b;
+  --accent: #5b82ff; --accent-hover: #7896ff; --accent-fg: #ffffff; --accent-soft: #1c2747; --accent-ring: rgba(91, 130, 255, 0.45);
+  --rh: #4f9dff; --lh: #ff9f43; --noise: #ff5d73; --noise-soft: #3a1820; --ok: #3ddc97;
+  --roll-bg: #090b10; --roll-grid: rgba(255, 255, 255, 0.05); --hit: rgba(91, 130, 255, 0.65);
+  --white-key: #f1f3f6; --black-key: #1a1d24; --key-label: #7a8090; --wave: #5f6b82; --wave-cut: #262d3b;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-btn: none; --shadow-primary: 0 6px 18px rgba(91, 130, 255, 0.28);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body);
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
-.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-header h1 { font: 700 26px/1.15 var(--font-display); margin: 0 0 4px; letter-spacing: -0.01em; text-wrap: balance; }
-header p { margin: 0; color: var(--muted); max-width: 68ch; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.step { font: 600 12px var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
-.panel-head h2 { font: 600 18px var(--font-display); margin: 0; }
+html { background: var(--bg); }
+body { margin: 0; color: var(--fg); font: 15px/1.5 var(--font-body); -webkit-font-smoothing: antialiased;
+  background: radial-gradient(1200px 420px at 50% -120px, var(--bg-tint), transparent 70%), var(--bg); background-attachment: fixed;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px;
+  transition: background-color .2s, color .2s; }
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+/* header */
+header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 320px; }
+.logo { width: 40px; height: 40px; border-radius: 12px; background: var(--accent); box-shadow: var(--shadow-primary); flex: none;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 9px 8px; align-items: end; }
+.logo i { display: block; background: #fff; border-radius: 2px; }
+.logo i:nth-child(1) { height: 60%; } .logo i:nth-child(2) { height: 100%; } .logo i:nth-child(3) { height: 40%; } .logo i:nth-child(4) { height: 80%; }
+header h1 { font: 700 24px/1.1 var(--font-display); margin: 0; letter-spacing: -0.02em; }
+header p { margin: 3px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+.theme-toggle { margin-left: auto; }
+
+/* cards */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 20px; display: flex; flex-direction: column;
+  gap: 14px; min-width: 0; box-shadow: var(--shadow-card); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .panel { border-color: transparent; } }
+:root[data-theme="light"] .panel { border-color: transparent; }
+.panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.step { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent);
+  font: 700 13px var(--font-display); flex: none; }
+.panel-head h2 { font: 600 19px var(--font-display); margin: 0; letter-spacing: -0.01em; }
 .panel-head .sub { color: var(--muted); font-size: 13.5px; margin-left: auto; min-width: 0; overflow-wrap: anywhere; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-button, select, .btn { font: 500 14px var(--font-body); background: var(--raised); color: var(--fg); border: 1px solid var(--line);
-  border-radius: 8px; padding: 7px 12px; cursor: pointer; line-height: 1.3; }
-button:hover:not(:disabled), .btn:hover { border-color: var(--muted); }
-button:focus-visible, select:focus-visible, input:focus-visible, .btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-button:disabled { opacity: 0.45; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
-button.danger:not(:disabled) { border-color: var(--noise); color: var(--noise); }
-button.toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.toolbar { background: var(--sunken); border: 1px solid var(--line); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.toolbar .row + .row { padding-top: 10px; border-top: 1px solid var(--line); }
+.push { margin-left: auto; }
+
+/* buttons: pills */
+button, select, .btn { font: 500 14px/1 var(--font-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: 999px; height: 36px; padding: 0 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-btn);
+  transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, transform .08s; white-space: nowrap; }
+button:hover:not(:disabled), .btn:hover { background: var(--raised); border-color: var(--line-strong); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible, select:focus-visible, input:focus-visible, .btn:focus-within { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+button.primary { background: var(--accent); border-color: transparent; color: var(--accent-fg); font-weight: 600; box-shadow: var(--shadow-primary); }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: transparent; }
+button.soft { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; box-shadow: none; }
+button.soft:hover:not(:disabled) { background: var(--accent-soft); filter: brightness(0.97); }
+button.danger:not(:disabled) { color: var(--noise); }
+button.danger:hover:not(:disabled) { background: var(--noise-soft); border-color: transparent; }
+button.toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+.icon { width: 36px; padding: 0; justify-content: center; font-size: 16px; }
+.group { display: inline-flex; }
+.group > button { border-radius: 0; margin-left: -1px; }
+.group > button:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
+.group > button:last-child { border-radius: 0 999px 999px 0; }
+select { appearance: none; -webkit-appearance: none; padding-right: 32px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 17px) 15px, calc(100% - 12px) 15px; background-size: 5px 5px; background-repeat: no-repeat; }
 .btn input { display: none; }
-label.check, .field { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13.5px; }
+label.check, .field { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; }
 input[type=range] { accent-color: var(--accent); width: 110px; }
-input[type=number] { width: 76px; font: 500 14px var(--font-mono); background: var(--raised); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+input[type=number] { width: 78px; height: 36px; font: 500 14px var(--font-mono); background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong);
+  border-radius: 10px; padding: 0 10px; }
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); font-size: 13px; }
-.sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.sep { width: 1px; height: 24px; background: var(--line-strong); margin: 0 4px; }
+
+/* instrument switch */
+.seg { display: inline-flex; border-radius: 999px; padding: 3px; background: var(--raised); gap: 2px; }
+.seg button { border: 0; background: transparent; height: 32px; padding: 0 16px; font-weight: 600; color: var(--muted); box-shadow: none; }
+.seg button:hover:not(:disabled) { background: transparent; color: var(--fg); }
+.seg button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(20, 28, 50, 0.14); }
 
 /* drop zone + waveform */
-#drop { border: 2px dashed var(--line); border-radius: var(--radius); padding: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; transition: border-color .15s, background .15s; }
-#drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+#drop { border: 1.5px dashed var(--line-strong); border-radius: 16px; padding: 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  background: var(--sunken); transition: border-color .15s, background-color .15s; }
+#drop.over { border-color: var(--accent); background: var(--accent-soft); }
 #drop .what { flex: 1 1 260px; min-width: 0; }
 #drop .what b { display: block; font-weight: 600; overflow-wrap: anywhere; }
 #drop .what span { color: var(--muted); font-size: 13.5px; }
-#wavebox { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--raised); border: 1px solid var(--line); touch-action: none; }
+#wavebox { position: relative; border-radius: 14px; overflow: hidden; background: var(--sunken); border: 1px solid var(--line); touch-action: none; }
 #wave { display: block; width: 100%; height: 84px; cursor: pointer; }
-.engines { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
-.engine { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; background: var(--surface); }
-.engine:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
-.engine input { margin-top: 3px; accent-color: var(--accent); }
+.engines { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.engine { display: flex; gap: 12px; align-items: flex-start; border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 14px; cursor: pointer;
+  background: var(--surface); transition: border-color .15s, background-color .15s; }
+.engine:hover { border-color: var(--line-strong); }
+.engine:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.engine input { margin-top: 2px; }
 .engine b { display: block; font-weight: 600; }
 .engine span { color: var(--muted); font-size: 13px; }
 .progress { height: 6px; background: var(--raised); border-radius: 3px; overflow: hidden; }
-.progress div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.progress div { height: 100%; width: 0; background: var(--accent); transition: width .15s; border-radius: 3px; }
 #txstatus { color: var(--muted); font-size: 13.5px; }
 
 /* editor */
-#stage { position: relative; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--roll-bg);
+#stage { position: relative; border-radius: 16px; overflow: hidden; background: var(--roll-bg); border: 1px solid var(--line);
   touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 #cv { display: block; width: 100%; }
 .rollbar { height: 4px; background: var(--raised); border-radius: 2px; overflow: hidden; }
 .rollbar div { height: 100%; width: 0; background: var(--accent); }
 .status { font-size: 13px; color: var(--muted); }
 .status.saved { color: var(--ok); }
-.selinfo { font-size: 13px; margin-left: auto; font-variant-numeric: tabular-nums; min-width: 0; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12.5px; }
-.sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.selinfo { font-size: 13px; margin-left: auto; font-variant-numeric: tabular-nums; min-width: 0; color: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); font-size: 12.5px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: 0; margin-right: 6px; }
 .hint { color: var(--muted); font-size: 12.5px; line-height: 2; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 2px; background: var(--raised); gap: 2px; }
-.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 7px; font-weight: 600; color: var(--muted); }
-.seg button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-kbd { background: var(--raised); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 12px var(--font-mono); color: var(--fg); }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-.stat { background: var(--raised); border-radius: var(--radius); padding: 10px 12px; }
-.stat b { display: block; font: 600 20px var(--font-display); font-variant-numeric: tabular-nums; }
+kbd { background: var(--surface); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font: 11.5px var(--font-mono); color: var(--fg); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--sunken); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.stat b { display: block; font: 600 20px var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .stat span { color: var(--muted); font-size: 12.5px; }
-footer { color: var(--muted); font-size: 12.5px; max-width: 80ch; }
+footer { color: var(--faint); font-size: 12.5px; max-width: 80ch; }
 footer a { color: inherit; }
 #toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 14px); opacity: 0; pointer-events: none;
-  transition: opacity .18s, transform .18s; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 10px 14px;
-  display: flex; gap: 12px; align-items: center; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: calc(100% - 32px); z-index: 10; }
+  transition: opacity .18s, transform .18s; background: var(--fg); color: var(--bg); border-radius: 999px; padding: 8px 8px 8px 18px;
+  display: flex; gap: 12px; align-items: center; font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: calc(100% - 32px); z-index: 10; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-#toast button { padding: 3px 10px; background: transparent; color: inherit; border-color: currentColor; }
+#toast button { height: 30px; background: transparent; color: inherit; border-color: currentColor; box-shadow: none; }
+#toast button:hover { background: transparent; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-@media (max-width: 640px) { .selinfo { margin-left: 0; flex-basis: 100%; } .sep { display: none; } }
+@media (max-width: 640px) {
+  .selinfo { margin-left: 0; flex-basis: 100%; } .sep { display: none; } .push { margin-left: 0; }
+  .panel { padding: 16px; border-radius: 18px; } header h1 { font-size: 21px; }
+}
 </style>
 
 <div class="wrap">
   <header>
-    <h1>Audio to Notes</h1>
-    <p>Turn a recording into notes you can see, play back and clean up, then read them as piano keys or guitar tab and download them. Everything runs in your browser; your audio is never uploaded.</p>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div>
+        <h1>Audio to Notes</h1>
+        <p>Turn a recording into notes you can play on piano or guitar. Everything runs in your browser; your audio is never uploaded.</p>
+      </div>
+    </div>
+    <button class="theme-toggle" id="theme" title="Switch between light and dark">☾ Dark</button>
   </header>
 
   <section class="panel" id="p-rec" aria-labelledby="h-rec">
-    <div class="panel-head"><span class="step">Step 1</span><h2 id="h-rec">Recording</h2><span class="sub" id="recmeta"></span></div>
+    <div class="panel-head"><span class="step" aria-label="Step 1">1</span><h2 id="h-rec">Recording</h2><span class="sub" id="recmeta"></span></div>
     <div id="drop">
-      <div class="what"><b id="recname">Drop a piano recording here</b><span id="rechint">MP3, WAV or M4A. You can also drop a .mid file to edit it.</span></div>
+      <div class="what"><b id="recname">Drop a recording here</b><span id="rechint">MP3, WAV or M4A. You can also drop a .mid file to edit it.</span></div>
       <label class="btn">Choose file<input type="file" id="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mid,.midi"></label>
     </div>
     <div id="recbody">
@@ -145,7 +216,7 @@ footer a { color: inherit; }
   </section>
 
   <section class="panel" id="p-edit" aria-labelledby="h-edit">
-    <div class="panel-head"><span class="step">Step 2</span><h2 id="h-edit">Notes</h2><span class="sub" id="piecemeta"></span></div>
+    <div class="panel-head"><span class="step" aria-label="Step 2">2</span><h2 id="h-edit">Notes</h2><span class="sub" id="piecemeta"></span></div>
     <div class="row">
       <div class="seg" role="tablist" aria-label="Instrument">
         <button role="tab" id="ins-piano" data-ins="piano" aria-selected="true">Piano</button>
@@ -153,29 +224,38 @@ footer a { color: inherit; }
       </div>
       <span class="field" data-for="guitar" hidden>Tuning <select id="tuning"></select></span>
       <span class="field" data-for="guitar" hidden>Capo <select id="capo"></select></span>
+      <span class="field" data-for="guitar" hidden>Play <select id="simplify" title="Piano music often has more notes than one guitarist can play">
+        <option value="full">Every note</option><option value="melodybass" selected>Melody + bass</option><option value="melody">Melody only</option></select></span>
     </div>
-    <div class="row">
-      <button class="primary" id="play" style="min-width:88px">▶ Play</button>
-      <button id="restart">⟲ Restart</button>
-      <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="0.75"><span class="num" id="speedv">75%</span></span>
-      <span class="field">Hear <select id="hear"><option value="notes">Notes</option><option value="rec">Recording</option><option value="both">Both</option><option value="none">Nothing</option></select></span>
-      <span class="sep"></span>
-      <button class="primary" id="dl">Download MIDI</button>
-      <button class="primary" id="dltab" data-for="guitar" hidden>Download tab</button>
-    </div>
-    <div class="row">
-      <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
-      <button id="redo" title="Redo (⇧⌘Z)">↷ Redo</button>
-      <button id="del" class="danger" title="Delete the selected notes (⌫)">Delete</button>
-      <button id="boxmode" class="toggle" aria-pressed="false" title="Drag on the roll to select a group of notes">▭ Box select</button>
-      <button id="revert" title="Bring back every transcribed note (you can undo this)">Reset</button>
-      <span class="status" id="status"></span>
-      <span class="selinfo" id="selinfo"></span>
-    </div>
-    <div class="row">
-      <label class="check"><input type="checkbox" id="tinyshow" checked> Mark tiny notes</label>
-      <span class="field">this short or less <input type="range" id="tinyms" min="50" max="250" step="10" value="80"><span class="num" id="tinymsv">80 ms</span></span>
-      <button id="tinydel" class="danger" title="Delete every note at or under this length (you can undo this)">Remove tiny notes</button>
+    <div class="toolbar">
+      <div class="row">
+        <div class="group">
+          <button class="primary" id="play" style="min-width:92px">▶ Play</button>
+          <button class="icon" id="restart" title="Play from the start" aria-label="Play from the start">⟲</button>
+        </div>
+        <span class="field">Speed <input type="range" id="speed" min="0.25" max="1" step="0.05" value="0.75"><span class="num" id="speedv">75%</span></span>
+        <span class="field">Hear <select id="hear"><option value="notes">Notes</option><option value="rec">Recording</option><option value="both">Both</option><option value="none">Nothing</option></select></span>
+        <span class="push"></span>
+        <button class="soft" id="dl">Download MIDI</button>
+        <button class="soft" id="dltab" data-for="guitar" hidden>Download tab</button>
+      </div>
+      <div class="row">
+        <div class="group">
+          <button id="undo" title="Undo (⌘Z)">↶ Undo</button>
+          <button id="redo" title="Redo (⇧⌘Z)">↷ Redo</button>
+        </div>
+        <button id="del" class="danger" title="Delete the selected notes (⌫)">Delete</button>
+        <button id="boxmode" class="toggle" aria-pressed="false" title="Drag on the roll to select a group of notes">▭ Box select</button>
+        <button id="revert" title="Bring back every transcribed note (you can undo this)">Reset</button>
+        <span class="sep"></span>
+        <label class="check"><input type="checkbox" id="tinyshow" checked> Mark tiny notes</label>
+        <span class="field">≤ <input type="range" id="tinyms" min="50" max="250" step="10" value="80"><span class="num" id="tinymsv">80 ms</span></span>
+        <button id="tinydel" class="danger" title="Delete every note at or under this length (you can undo this)">Remove tiny notes</button>
+      </div>
+      <div class="row">
+        <span class="status" id="status"></span>
+        <span class="selinfo" id="selinfo"></span>
+      </div>
     </div>
     <div id="stage"><canvas id="cv"></canvas></div>
     <div class="rollbar"><div id="prog"></div></div>
@@ -615,71 +695,151 @@ const INSTRUMENTS = {
   } },
 };
 
-// Choose a string and fret for every note so chords stay within reach and the hand moves as little as possible.
-// Returns { map: Map(note -> {s, f, p, transposed} | {unplayable: true}), groups, stats }.
-function arrangeFretted(notes, open, frets) {
-  const nS = open.length, lo = Math.min(...open), hi = Math.max(...open) + frets;
+/* Chord shapes guitarists actually use (standard tuning, low E string first, -1 = not played).
+   root = string that carries the chord's root note, q = chord quality shown after the root name. */
+const CHORD_SHAPES = (() => {
+  const X = -1, list = [];
+  const openShapes = [
+    ['C', [X, 3, 2, 0, 1, 0], 1, ''], ['A', [X, 0, 2, 2, 2, 0], 1, ''], ['G', [3, 2, 0, 0, 0, 3], 0, ''], ['G', [3, 2, 0, 0, 3, 3], 0, ''],
+    ['E', [0, 2, 2, 1, 0, 0], 0, ''], ['D', [X, X, 0, 2, 3, 2], 2, ''], ['Am', [X, 0, 2, 2, 1, 0], 1, 'm'], ['Em', [0, 2, 2, 0, 0, 0], 0, 'm'],
+    ['Dm', [X, X, 0, 2, 3, 1], 2, 'm'], ['A7', [X, 0, 2, 0, 2, 0], 1, '7'], ['E7', [0, 2, 0, 1, 0, 0], 0, '7'], ['D7', [X, X, 0, 2, 1, 2], 2, '7'],
+    ['C7', [X, 3, 2, 3, 1, 0], 1, '7'], ['G7', [3, 2, 0, 0, 0, 1], 0, '7'], ['B7', [X, 2, 1, 2, 0, 2], 1, '7'], ['Fmaj7', [X, X, 3, 2, 1, 0], 2, 'maj7'],
+    ['Cadd9', [X, 3, 2, 0, 3, 0], 1, 'add9'],
+  ];
+  for (const [, frets, root, q] of openShapes) list.push({ frets, root, q });
+  const movable = [ // barre shapes, played at any fret r (0 in the pattern = the barre)
+    [[0, 2, 2, 1, 0, 0], 0, ''], [[0, 2, 2, 0, 0, 0], 0, 'm'], [[0, 2, 0, 1, 0, 0], 0, '7'],
+    [[X, 0, 2, 2, 2, 0], 1, ''], [[X, 0, 2, 2, 1, 0], 1, 'm'], [[X, 0, 2, 0, 2, 0], 1, '7'],
+    [[0, 2, 2, X, X, X], 0, '5'], [[X, 0, 2, 2, X, X], 1, '5'], [[X, X, 0, 2, 3, X], 2, '5'],
+  ];
+  for (const [shape, root, q] of movable) for (let r = 1; r <= 12; r++) list.push({ frets: shape.map(f => f < 0 ? -1 : f + r), root, q });
+  return list;
+})();
+const matchShape = c => CHORD_SHAPES.find(sh => c.every(x => sh.frets[x.s] === x.f)) || null;
+
+// Keep only the notes a guitarist would keep when adapting piano music: the top line (melody), optionally the bottom line (bass).
+function simplifyNotes(notes, mode) {
+  if (mode === 'full') return new Set(notes);
+  const s = notes.slice().sort((a, b) => a.start - b.start), keep = new Set();
+  for (let i = 0; i < s.length; i++) {
+    const n = s[i]; let higher = false, lower = false;
+    for (let k = 0; k < s.length; k++) {
+      const m = s[k]; if (m === n) continue;
+      if (m.start > n.start + 0.035) break;
+      if (m.start + m.dur <= n.start + 0.03) continue; // already finished
+      if (m.pitch > n.pitch) higher = true; else if (m.pitch < n.pitch) lower = true;
+    }
+    if (!higher || (mode === 'melodybass' && !lower)) keep.add(n);
+  }
+  return keep;
+}
+
+/* Choose a string and fret for every note, the way a player would:
+   - chords use real shapes when the notes fit one (open chords, E/A-shape barres, power chords),
+   - the hand sits in a 4-fret box and only moves when it has to (moving costs more than staying),
+   - no chord needs a stretch of more than 4 frets (inner notes are left out if it would),
+   - lower on the neck is slightly preferred.
+   Returns { map: Map(note -> {s, f, p, transposed} | {unplayable, simplified}), groups, chords, stats }. */
+function arrangeFretted(notes, open, frets, opts = {}) {
+  const { simplify = 'full', shapes = false } = opts;
+  const nS = open.length, lo = Math.min(...open), hi = Math.max(...open) + frets, WINDOW = 3;
   const fit = p => { let q = p; while (q < lo) q += 12; while (q > hi) q -= 12; return q; };
+  const map = new Map();
+  const kept = simplifyNotes(notes, simplify);
+  for (const n of notes) if (!kept.has(n)) map.set(n, { unplayable: true, simplified: true });
   const sorted = notes.slice().sort((a, b) => a.start - b.start || a.pitch - b.pitch);
   const groups = [];
   for (const n of sorted) { const g = groups[groups.length - 1]; if (g && n.start - g.t <= 0.035) g.notes.push(n); else groups.push({ t: n.start, notes: [n] }); }
-  const map = new Map(); let transposed = 0, unplayable = 0;
+
+  const score = c => {
+    const fz = c.filter(x => x.f > 0).map(x => x.f);
+    const flo = fz.length ? Math.min(...fz) : null, fhi = fz.length ? Math.max(...fz) : null, span = fz.length ? fhi - flo : 0;
+    let cost = Math.max(0, span - 3) * 3 + Math.max(0, span - 4) * 10 + (flo === null ? 0 : flo * 0.05) + Math.max(0, (fhi || 0) - 12) * 0.25;
+    const shape = shapes && c.length >= 2 ? matchShape(c) : null;
+    if (shape) cost -= c.length >= 3 ? 2.5 : 0.8;
+    return { c, lo: flo, hi: fhi, span, cost, shape };
+  };
   const layers = groups.map(g => {
-    const items = g.notes.map(n => ({ n, p: fit(n.pitch) }));
+    const items = g.notes.filter(n => kept.has(n)).map(n => ({ n, p: fit(n.pitch) }));
     const byP = new Map();
     for (const it of items) { const o = byP.get(it.p); if (!o || it.n.vel > o.n.vel) byP.set(it.p, it); }
     let keep = [...byP.values()].sort((a, b) => b.n.vel - a.n.vel);
     const dropped = keep.slice(nS); keep = keep.slice(0, nS).sort((a, b) => a.p - b.p);
     const dups = items.filter(it => byP.get(it.p) !== it);
-    let list = [];
+    let cands = [];
     for (;;) {
-      const opts = keep.map(it => open.map((o, s) => ({ s, f: it.p - o })).filter(x => x.f >= 0 && x.f <= frets));
-      list = [];
+      const optsS = keep.map(it => open.map((o, s) => ({ s, f: it.p - o })).filter(x => x.f >= 0 && x.f <= frets));
+      const list = [];
       const walk = (i, used, cur) => {
-        if (list.length > 600) return;
+        if (list.length > 800) return;
         if (i === keep.length) { list.push(cur.slice()); return; }
-        for (const o of opts[i]) { if (used & (1 << o.s)) continue; cur.push(o); walk(i + 1, used | (1 << o.s), cur); cur.pop(); }
+        for (const o of optsS[i]) { if (used & (1 << o.s)) continue; cur.push(o); walk(i + 1, used | (1 << o.s), cur); cur.pop(); }
       };
       walk(0, 0, []);
-      if (list.length || !keep.length) break;
-      dropped.push(keep.pop()); // two notes need the same string: leave out the highest and try again
+      cands = list.map(score).sort((a, b) => a.cost - b.cost).slice(0, 48);
+      if (!keep.length) break;
+      if (!cands.length) { dropped.push(keep.pop()); continue; } // two notes need the same string
+      if (keep.length > 1 && Math.min(...cands.map(c => c.span)) > 4) { // unreachable stretch
+        const low = keep[0], up = low.p + 12;
+        if (!low.raised && up <= hi && up < keep[keep.length - 1].p && !keep.some(k => k.p === up)) {
+          low.p = up; low.raised = true; keep.sort((a, b) => a.p - b.p); continue; // move the bass up an octave, as players do
+        }
+        const victim = keep.length > 2 ? keep.slice(1, -1).sort((a, b) => a.n.vel - b.n.vel)[0] : keep[0];
+        dropped.push(victim); keep = keep.filter(it => it !== victim); continue;
+      }
+      break;
     }
-    const cands = list.map(c => {
-      const fz = c.filter(x => x.f > 0).map(x => x.f);
-      const span = fz.length ? Math.max(...fz) - Math.min(...fz) : 0;
-      const pos = fz.length ? (Math.max(...fz) + Math.min(...fz)) / 2 : null;
-      const cost = span * 0.7 + Math.max(0, span - 4) * 6 + (pos === null ? 0 : pos * 0.08) + fz.reduce((a, b) => a + b, 0) * 0.02;
-      return { c, pos, cost };
-    }).sort((a, b) => a.cost - b.cost).slice(0, 40);
     return { g, keep, dropped, dups, cands };
   });
-  // Viterbi over groups: total = own cost + hand movement (cheaper when there is more time to move)
-  const best = layers.map(L => L.cands.map(() => ({ total: Infinity, from: -1 })));
-  layers.forEach((L, i) => L.cands.forEach((c, j) => {
-    if (i === 0 || !layers[i - 1].cands.length) { best[i][j] = { total: c.cost, from: -1 }; return; }
-    const prev = layers[i - 1], gap = L.g.t - prev.g.t;
-    let bt = Infinity, bf = -1;
-    prev.cands.forEach((pc, k) => {
-      const move = c.pos === null || pc.pos === null ? 0 : Math.abs(c.pos - pc.pos) * 0.5 / (1 + 2 * gap);
-      const tot = best[i - 1][k].total + move + c.cost;
-      if (tot < bt) { bt = tot; bf = k; }
+
+  // Viterbi over the groups that have notes to place. State = a candidate plus where the hand (index finger) sits.
+  const act = layers.filter(L => L.cands.length);
+  const move = (anchor, c, gap) => {
+    if (c.lo === null) return [0, anchor];
+    if (anchor === null) return [0, c.lo];
+    if (c.lo >= anchor && c.hi <= anchor + WINDOW) return [0, anchor];
+    const na = c.lo < anchor ? c.lo : c.hi - WINDOW;
+    return [(2 + 0.3 * Math.abs(na - anchor)) * Math.max(0.35, 1 - 0.4 * gap), na];
+  };
+  const best = act.map(L => L.cands.map(() => null));
+  act.forEach((L, i) => L.cands.forEach((c, j) => {
+    if (i === 0) { best[i][j] = { total: c.cost, from: -1, anchor: c.lo }; return; }
+    const gap = L.g.t - act[i - 1].g.t; let b = null;
+    act[i - 1].cands.forEach((pc, k) => {
+      const prev = best[i - 1][k], [mc, na] = move(prev.anchor, c, gap), tot = prev.total + mc + c.cost;
+      if (!b || tot < b.total) b = { total: tot, from: k, anchor: na };
     });
-    best[i][j] = { total: bt, from: bf };
+    best[i][j] = b;
   }));
-  let j = -1;
-  for (let i = layers.length - 1; i >= 0; i--) {
-    const L = layers[i];
-    if (j < 0 || j >= L.cands.length) { j = 0; for (let k = 1; k < L.cands.length; k++) if (best[i][k].total < best[i][j].total) j = k; }
+  const chords = [];
+  let j = -1, shifts = 0, shapeChords = 0, chordGroups = 0;
+  for (let i = act.length - 1; i >= 0; i--) {
+    const L = act[i];
+    if (j < 0) { j = 0; for (let k = 1; k < L.cands.length; k++) if (best[i][k].total < best[i][j].total) j = k; }
     const pick = L.cands[j];
-    if (pick) pick.c.forEach((pos, idx) => { const it = L.keep[idx]; map.set(it.n, { s: pos.s, f: pos.f, p: it.p, transposed: it.p !== it.n.pitch }); });
-    for (const it of L.dups) { const a = map.get(byPitch(L, it.p)); map.set(it.n, a ? { ...a, transposed: it.p !== it.n.pitch } : { unplayable: true }); }
-    for (const it of L.dropped) map.set(it.n, { unplayable: true });
-    j = pick ? best[i][j].from : -1;
+    pick.c.forEach((pos, idx) => { const it = L.keep[idx]; map.set(it.n, { s: pos.s, f: pos.f, p: it.p, transposed: it.p !== it.n.pitch }); });
+    if (pick.c.length >= 3) {
+      chordGroups++;
+      if (pick.shape) {
+        shapeChords++;
+        const rootPos = pick.c.find(x => x.s === pick.shape.root);
+        if (rootPos) chords.push({ t: L.g.t, name: PITCH_NAMES[(open[rootPos.s] + rootPos.f) % 12] + pick.shape.q });
+      }
+    }
+    if (i > 0 && best[i][j].anchor !== best[i - 1][best[i][j].from].anchor && best[i - 1][best[i][j].from].anchor !== null) shifts++;
+    j = best[i][j].from;
   }
-  function byPitch(L, p) { const k = L.keep.find(it => it.p === p); return k && k.n; }
-  for (const [n, a] of map) { if (a.unplayable) unplayable++; else if (a.transposed) transposed++; }
-  let maxFret = 0; for (const a of map.values()) if (!a.unplayable) maxFret = Math.max(maxFret, a.f);
-  return { map, groups, stats: { transposed, unplayable, maxFret } };
+  for (const L of layers) {
+    for (const it of L.dups) { const k = L.keep.find(x => x.p === it.p), a = k && map.get(k.n); map.set(it.n, a && !a.unplayable ? { ...a, transposed: it.p !== it.n.pitch } : { unplayable: true }); }
+    for (const it of L.dropped) map.set(it.n, { unplayable: true });
+  }
+  let transposed = 0, unplayable = 0, simplified = 0, maxFret = 0;
+  for (const a of map.values()) {
+    if (a.simplified) simplified++; else if (a.unplayable) unplayable++;
+    else { if (a.transposed) transposed++; maxFret = Math.max(maxFret, a.f); }
+  }
+  chords.reverse();
+  return { map, groups, chords, stats: { transposed, unplayable, simplified, maxFret, shifts, shapeChords, chordGroups } };
 }
 
 function stringNames(open) {
@@ -690,7 +850,7 @@ function stringNames(open) {
 // Plain-text tab. Spacing follows timing (there are no bar lines: the transcription has no tempo or beat).
 function tabText(title, arr, open, capo, tuningLabel, width = 76) {
   const nS = open.length, labels = stringNames(open.map(p => p + capo)).map(s => s.padEnd(2));
-  const cols = [];
+  const cols = [], colChord = [], chordAt = new Map((arr.chords || []).map(c => [c.t, c.name]));
   let prevT = null;
   for (const g of arr.groups) {
     const placed = g.notes.map(n => arr.map.get(n)).filter(a => a && !a.unplayable);
@@ -700,19 +860,27 @@ function tabText(title, arr, open, capo, tuningLabel, width = 76) {
     const w = Math.max(...placed.map(a => String(a.f).length));
     const col = Array(nS).fill('-'.repeat(w));
     for (const a of placed) col[a.s] = String(a.f).padEnd(w, '-');
+    if (chordAt.has(g.t)) colChord[cols.length] = chordAt.get(g.t);
     cols.push(col); prevT = g.t;
   }
   cols.push(Array(nS).fill('-'));
   const out = [title, `Tuning: ${tuningLabel}${capo ? ` · Capo on fret ${capo} (frets are counted from the capo)` : ''}`,
     'Spacing follows the timing of the recording; there are no bar lines.'];
   if (arr.stats.transposed) out.push(`${arr.stats.transposed} note(s) were moved an octave to fit the guitar.`);
-  if (arr.stats.unplayable) out.push(`${arr.stats.unplayable} note(s) were left out because more notes sounded at once than there are strings.`);
+  if (arr.stats.simplified) out.push(`Simplified for one guitar: ${arr.stats.simplified} note(s) left out to keep it playable.`);
+  if (arr.stats.unplayable) out.push(`${arr.stats.unplayable} note(s) were left out because they could not be reached in the same hand position.`);
   out.push('');
   let i = 0;
   while (i < cols.length) {
     let len = 0, j = i;
     while (j < cols.length && len + cols[j][0].length <= width - 4) { len += cols[j][0].length; j++; }
     if (j === i) j = i + 1;
+    let chordLine = '', at = 3; // chord names line up over their column ("e |" is 3 characters wide)
+    for (let k = i; k < j; k++) {
+      if (colChord[k] && at >= chordLine.length) { chordLine = chordLine.padEnd(at) + colChord[k] + ' '; }
+      at += cols[k][0].length;
+    }
+    if (chordLine.trim()) out.push(chordLine.trimEnd());
     for (let s = nS - 1; s >= 0; s--) out.push(labels[s] + '|' + cols.slice(i, j).map(c => c[s]).join('') + '|');
     out.push(''); i = j;
   }
@@ -749,7 +917,19 @@ let C = null;
 const readColors = () => { const s = getComputedStyle(document.documentElement); C = {}; for (const k of ['roll-bg', 'roll-grid', 'hit', 'rh', 'lh', 'noise', 'white-key', 'black-key', 'key-label', 'wave', 'wave-cut', 'accent', 'fg', 'muted', 'raised']) C[k] = s.getPropertyValue('--' + k).trim(); };
 readColors();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); drawWave(); });
-new MutationObserver(() => { readColors(); draw(); drawWave(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
+new MutationObserver(() => { readColors(); draw(); drawWave(); syncThemeButton(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
+
+/* light / dark: follows the system until the viewer picks one */
+const currentTheme = () => { const d = document.documentElement.dataset.theme; return d === 'light' || d === 'dark' ? d : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); };
+function syncThemeButton() { const dark = currentTheme() === 'dark'; $('theme').textContent = dark ? '☀ Light' : '☾ Dark'; $('theme').setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode'); }
+try { const th = localStorage.getItem('a2p.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}
+syncThemeButton();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncThemeButton);
+$('theme').onclick = () => {
+  const th = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = th;
+  try { localStorage.setItem('a2p.theme', th); } catch (e) {}
+};
 
 /* ================= storage (this browser only) ================= */
 const store = {
@@ -797,7 +977,7 @@ async function loadFile(file) {
     idb('readwrite', s => s.put({ name: file.name, blob: file }, 'current'));
     $('txstatus').textContent = 'Set where the music starts and ends, then transcribe.';
   } catch (e) {
-    $('recname').textContent = 'Drop a piano recording here';
+    $('recname').textContent = 'Drop a recording here';
     $('rechint').textContent = 'That file couldn\'t be read as audio. Try an MP3, WAV or M4A.';
   }
 }
@@ -957,9 +1137,12 @@ function renderStats() {
     <div class="stat"><b>${removed}</b><span>removed of ${piece.original.length} found</span></div>
     <div class="stat"><b>${ENGINE_LABEL[piece.engine]}</b><span>transcribed with</span></div>` + (isTab() ? (() => {
       const s = arrangement().stats;
-      return `<div class="stat"><b>${s.maxFret}</b><span>highest fret used</span></div>
+      const secs = Math.max(1, song.end - 0.5);
+      return `<div class="stat"><b>${(s.shifts / secs * 10).toFixed(1)}</b><span>hand position changes per 10 s</span></div>
+        <div class="stat"><b>${s.shapeChords}/${s.chordGroups}</b><span>chords that use a standard shape</span></div>
+        <div class="stat"><b>${s.maxFret}</b><span>highest fret used</span></div>
         <div class="stat"><b>${s.transposed}</b><span>moved an octave to fit</span></div>
-        <div class="stat"><b>${s.unplayable}</b><span>left out (too many at once)</span></div>`;
+        <div class="stat"><b>${s.unplayable + s.simplified}</b><span>left out${s.simplified ? ' (simplified)' : ' (out of reach)'}</span></div>`;
     })() : '');
 }
 
@@ -991,9 +1174,10 @@ const isTiny = n => n.dur * 1000 <= tinyMs + 0.5;
 const tinyShown = () => $('tinyshow').checked;
 
 /* ================= instrument views ================= */
-let instrument = 'piano', tuningKey = 'standard', capo = 0;
+let instrument = 'piano', tuningKey = 'standard', capo = 0, simplifyMode = 'melodybass';
 try {
   const i = localStorage.getItem('a2p.instrument'); if (INSTRUMENTS[i]) instrument = i;
+  const sm = localStorage.getItem('a2p.simplify'); if (['full', 'melodybass', 'melody'].includes(sm)) simplifyMode = sm;
   const tk = localStorage.getItem('a2p.tuning'); if (INSTRUMENTS.guitar.tunings[tk]) tuningKey = tk;
   const c = +localStorage.getItem('a2p.capo'); if (c >= 0 && c <= 9) capo = c;
 } catch (e) {}
@@ -1002,9 +1186,9 @@ const isTab = () => ins().view === 'tab';
 const openStrings = () => INSTRUMENTS.guitar.tunings[tuningKey].open.map(p => p + capo);
 let arrCache = { notes: null, key: '', arr: null };
 function arrangement() {
-  const key = tuningKey + '|' + capo;
+  const key = tuningKey + '|' + capo + '|' + simplifyMode;
   if (!arrCache.arr || arrCache.notes !== song.notes || arrCache.key !== key)
-    arrCache = { notes: song.notes, key, arr: arrangeFretted(song.notes, openStrings(), INSTRUMENTS.guitar.frets - capo) };
+    arrCache = { notes: song.notes, key, arr: arrangeFretted(song.notes, openStrings(), INSTRUMENTS.guitar.frets - capo, { simplify: simplifyMode, shapes: tuningKey === 'standard' }) };
   return arrCache.arr;
 }
 // The pitch the current instrument plays: guitar may move a note an octave; null means it was left out.
@@ -1020,7 +1204,7 @@ const TAB_PPS = 150; // tab scroll speed: pixels per second of music
 const TAB_LABEL_W = 28;
 function tabGeom() {
   const W = cv.clientWidth, H = cv.clientHeight, fbH = Math.min(150, Math.round(H * 0.34));
-  const top = 40, gap = Math.min(30, (H - fbH - top - 40) / 5);
+  const top = 56, gap = Math.min(30, (H - fbH - top - 40) / 5);
   return { W, H, fbH, top, gap, x0: Math.round(Math.max(90, W * 0.2)), pps: TAB_PPS };
 }
 function drawTab() {
@@ -1040,7 +1224,7 @@ function drawTab() {
   for (const n of song.notes) {
     const xs = xOf(n.start), xe = xOf(n.start + n.dur), a = arr.map.get(n);
     const sounding = t >= n.start && t <= n.start + n.dur;
-    if (xe < TAB_LABEL_W - 20 || xs > W + 30) continue;
+    if (xe < TAB_LABEL_W - 20 || xs > W + 30 || (a && a.simplified)) continue;
     if (!a || a.unplayable) {
       ctx.fillStyle = sel.has(n) ? C.fg : C.muted; ctx.font = '700 14px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('×', xs, outY + 5);
@@ -1059,7 +1243,13 @@ function drawTab() {
     else if (n === hoverNote) { ctx.strokeStyle = C.fg; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.5; roundRect(bx - 1, by - 1, bw + 2, bh + 2, 6); ctx.stroke(); ctx.globalAlpha = 1; }
     noteRects.push({ n, x: bx, y: by, w: bw, h: bh });
   }
-  ctx.fillStyle = C.accent; ctx.fillRect(x0 - 1, top - 14, 2, gap * (nS - 1) + 28);
+  ctx.font = '700 12px Inter, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = C.accent;
+  let lastChordX = -Infinity;
+  for (const ch of arr.chords) { // chord names above the tab, skipping ones that would overlap
+    const x = xOf(ch.t); if (x < TAB_LABEL_W || x > W) continue;
+    if (x - lastChordX < 34) continue; ctx.fillText(ch.name, x - 4, 20); lastChordX = x;
+  }
+  ctx.fillRect(x0 - 1, top - 14, 2, gap * (nS - 1) + 28);
   ctx.fillStyle = C['roll-bg']; ctx.fillRect(0, 0, TAB_LABEL_W, tabBottom);
   ctx.fillStyle = C.fg; ctx.font = '600 12px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
   for (let s = 0; s < nS; s++) ctx.fillText(names[s], TAB_LABEL_W / 2, yOf(s) + 4);
@@ -1342,6 +1532,8 @@ function setInstrument(name) {
 }
 document.querySelectorAll('.seg [data-ins]').forEach(b => b.onclick = () => setInstrument(b.dataset.ins));
 $('tuning').onchange = e => { tuningKey = e.target.value; try { localStorage.setItem('a2p.tuning', tuningKey); } catch (err) {} renderStats(); updateEditUI(); draw(); };
+$('simplify').value = simplifyMode;
+$('simplify').onchange = e => { simplifyMode = e.target.value; try { localStorage.setItem('a2p.simplify', simplifyMode); } catch (err) {} renderStats(); updateEditUI(); draw(); };
 $('capo').onchange = e => { capo = +e.target.value; try { localStorage.setItem('a2p.capo', capo); } catch (err) {} renderStats(); updateEditUI(); draw(); };
 
 /* keyboard */
