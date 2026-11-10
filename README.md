@@ -8,8 +8,10 @@ Turn a piano recording into notes, clean out the noise, and get a MIDI file.
 transcribe with **Basic Pitch** (Spotify's neural network) or **Classic** (signal processing),
 delete noisy notes, and download MIDI. Nothing is uploaded.
 
-- Published privately at https://claude.ai/artifact/VkKyXf9n4yzUgDiGjrPVHh
-- To host it elsewhere, serve the `web/` folder from any static web host (it needs `model/` and `sample/` beside `index.html`).
+- **Live at https://recklesshogrider96.github.io/audio2notes/**
+- Every push to `main` that changes `web/` republishes the site (see `.github/workflows/pages.yml`).
+- To run it locally: `cd web && python3 -m http.server 8000`, then open http://localhost:8000
+  (opening `index.html` directly from disk can't load the Basic Pitch model).
 - `web/model/` is the Basic Pitch model (Apache 2.0, see `LICENSE-basic-pitch.txt`). The weights file is named `.wasm`
   only so artifact hosting will serve it; it is the original `group1-shard1of1.bin`.
 
