@@ -3,6 +3,7 @@
 <title>Audio to Notes</title>
 <script>try { const t = localStorage.getItem('a2p.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; const c = localStorage.getItem('a2p.scheme'); if (/^(cobalt|lagoon|encore|citrus|grove)$/.test(c || '')) document.documentElement.dataset.scheme = c; } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" id="favicon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
@@ -49,10 +50,9 @@ body { margin: 0; color: var(--fg); font: 15px/1.5 var(--font-body); -webkit-fon
 /* header */
 header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 320px; }
-.logo { width: 40px; height: 40px; border-radius: 12px; background: var(--accent); box-shadow: var(--shadow-primary); flex: none;
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; padding: 9px 8px; align-items: end; }
-.logo i { display: block; background: #fff; border-radius: 2px; }
-.logo i:nth-child(1) { height: 60%; } .logo i:nth-child(2) { height: 100%; } .logo i:nth-child(3) { height: 40%; } .logo i:nth-child(4) { height: 80%; }
+.logo { width: 40px; height: 40px; border-radius: 12px; box-shadow: var(--shadow-primary); flex: none; display: block; }
+.logo .lbg { fill: var(--accent); transition: fill .2s; }
+.logo .lbars line { stroke: #fff; stroke-width: 1.9; stroke-linecap: round; }
 header h1 { font: 700 24px/1.1 var(--font-display); margin: 0; letter-spacing: -0.02em; }
 header p { margin: 3px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
 
@@ -203,7 +203,7 @@ button.big { height: 46px; padding: 0 28px; font-size: 15.5px; }
 <div class="wrap">
   <header>
     <div class="brand">
-      <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <svg class="logo" id="logo" viewBox="0 0 48 48" aria-hidden="true"><rect class="lbg" width="48" height="48" rx="13"/><circle cx="24" cy="24" r="9" fill="#000" fill-opacity=".22"/><circle cx="24" cy="24" r="9" fill="none" stroke="#fff" stroke-width="1.6"/><g class="lbars" id="logoBars"></g></svg>
       <div>
         <h1>Audio to Notes</h1>
         <p>Turn a recording into notes you can play on piano or guitar. Everything runs in your browser; your audio is never uploaded.</p>
@@ -972,7 +972,7 @@ let C = null;
 const readColors = () => { const s = getComputedStyle(document.documentElement); C = {}; for (const k of ['roll-bg', 'roll-grid', 'hit', 'rh', 'lh', 'noise', 'white-key', 'black-key', 'key-label', 'wave', 'wave-cut', 'accent', 'fg', 'muted', 'raised']) C[k] = s.getPropertyValue('--' + k).trim(); };
 readColors();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); drawWave(); });
-new MutationObserver(() => { readColors(); draw(); drawWave(); syncThemeButton(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'class', 'style'] });
+new MutationObserver(() => { readColors(); draw(); drawWave(); syncThemeButton(); updateFavicon(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'class', 'style'] });
 
 /* light / dark: follows the system until the viewer picks one */
 const currentTheme = () => { const d = document.documentElement.dataset.theme; return d === 'light' || d === 'dark' ? d : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); };
@@ -1136,9 +1136,10 @@ $('recplay').onclick = () => {
   if (!rec) return;
   if (recPlaying) { recAudio.pause(); return; }
   if (playing) stop();
+  routeRecording();
   recAudio.playbackRate = 1;
   if (recAudio.currentTime < cut.start || recAudio.currentTime >= cut.end) recAudio.currentTime = cut.start;
-  recAudio.play().then(() => { recPlaying = true; $('recplay').textContent = '❚❚ Pause'; const step = () => { if (!recPlaying) return; if (recAudio.currentTime >= cut.end) recAudio.pause(); drawWave(); requestAnimationFrame(step); }; requestAnimationFrame(step); }).catch(() => {});
+  recAudio.play().then(() => { recPlaying = true; kickLogo(); $('recplay').textContent = '❚❚ Pause'; const step = () => { if (!recPlaying) return; if (recAudio.currentTime >= cut.end) recAudio.pause(); drawWave(); requestAnimationFrame(step); }; requestAnimationFrame(step); }).catch(() => {});
 };
 recAudio.addEventListener('pause', () => { recPlaying = false; $('recplay').textContent = '▶ Listen'; drawWave(); });
 window.addEventListener('resize', () => { drawWave(); resize(); });
@@ -1415,13 +1416,81 @@ function drawRoll() {
 }
 
 /* playback */
+// One audio graph: synth notes and the recording both pass through `master` -> `analyser` -> speakers,
+// so the logo can follow whatever is actually sounding.
+let master = null, analyser = null, recSource = null, soundUntil = 0;
 function ensureSynth() {
-  if (!synth) { try { synth = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { synth = null; } }
+  if (!synth) {
+    try {
+      synth = new (window.AudioContext || window.webkitAudioContext)();
+      master = synth.createGain(); analyser = synth.createAnalyser();
+      analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.55;
+      master.connect(analyser); analyser.connect(synth.destination);
+    } catch (e) { synth = null; }
+  }
   if (synth && synth.state === 'suspended') synth.resume().catch(() => {});
+}
+function routeRecording() {
+  ensureSynth();
+  if (synth && !recSource) { try { recSource = synth.createMediaElementSource(recAudio); recSource.connect(master); } catch (e) { recSource = null; } }
+}
+
+/* Logo: a guitar sound hole whose rosette is a ring of audio bars. At rest it keeps a fixed shape;
+   while anything plays, each bar follows a frequency band (mirrored left/right, low notes at the top). */
+const LOGO_N = 28, LOGO_R1 = 11.6;
+const logoRest = Array.from({ length: LOGO_N }, (_, i) => 2.2 + 4.2 * Math.abs(Math.sin(i * 1.37)) * Math.abs(Math.cos(i * 0.53)));
+const logoLines = [], logoLevels = logoRest.slice();
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+function logoGeometry(lens) {
+  return lens.map((l, i) => {
+    const a = i / LOGO_N * Math.PI * 2 - Math.PI / 2, r2 = LOGO_R1 + l;
+    return [24 + LOGO_R1 * Math.cos(a), 24 + LOGO_R1 * Math.sin(a), 24 + r2 * Math.cos(a), 24 + r2 * Math.sin(a)].map(v => v.toFixed(2));
+  });
+}
+(function buildLogo() {
+  const g = $('logoBars');
+  for (let i = 0; i < LOGO_N; i++) { const l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); g.appendChild(l); logoLines.push(l); }
+  setLogo(logoRest);
+})();
+function setLogo(lens) {
+  logoGeometry(lens).forEach(([x1, y1, x2, y2], i) => { const l = logoLines[i]; l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2); });
+}
+let logoAnimating = false, logoData = null;
+const soundActive = () => playing || recPlaying || (!!synth && synth.currentTime < soundUntil);
+function kickLogo() {
+  if (logoAnimating || reduceMotion.matches || !analyser) return;
+  logoAnimating = true; requestAnimationFrame(logoFrame);
+}
+function logoFrame() {
+  const active = soundActive();
+  if (!logoData) logoData = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(logoData);
+  const half = LOGO_N / 2, bins = logoData.length;
+  let settled = true;
+  for (let i = 0; i < LOGO_N; i++) {
+    const k = i <= half ? i : LOGO_N - i;                     // mirror: both sides show the same band
+    // musical range only (roughly 50 Hz to 5 kHz), spaced so each bar gets its own band; highs get a small boost
+    const b = Math.min(bins - 1, Math.round(1 + Math.pow(k / half, 1.8) * bins * 0.2));
+    const v = Math.min(1, (logoData[b] / 255) * (1 + 0.9 * k / half));
+    const target = active ? 1.4 + v * v * 8.8 : logoRest[i];
+    logoLevels[i] += (target - logoLevels[i]) * (target > logoLevels[i] ? 0.5 : 0.16);
+    if (Math.abs(logoLevels[i] - logoRest[i]) > 0.04) settled = false;
+  }
+  setLogo(logoLevels);
+  if (active || !settled) requestAnimationFrame(logoFrame);
+  else { logoAnimating = false; setLogo(logoRest); }
+}
+// browser-tab icon: the resting logo in the current theme color
+function updateFavicon() {
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3461ff';
+  const bars = logoGeometry(logoRest).map(([x1, y1, x2, y2]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="13" fill="${accent}"/><circle cx="24" cy="24" r="9" fill="#000" fill-opacity=".22"/><circle cx="24" cy="24" r="9" fill="none" stroke="#fff" stroke-width="1.6"/><g stroke="#fff" stroke-width="1.9" stroke-linecap="round">${bars}</g></svg>`;
+  $('favicon').href = 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 function pluck(m, when, dur, vel) {
   if (!synth) return;
-  const f = 440 * Math.pow(2, (m - 69) / 12), g = synth.createGain(); g.connect(synth.destination);
+  const f = 440 * Math.pow(2, (m - 69) / 12), g = synth.createGain(); g.connect(master || synth.destination);
+  soundUntil = Math.max(soundUntil, when + dur + 0.3); kickLogo();
   const guitar = isTab(), peak = (guitar ? 0.15 : 0.18) * (vel / 127);
   g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(peak, when + (guitar ? 0.003 : 0.005));
   g.gain.exponentialRampToValueAtTime(peak * (guitar ? 0.2 : 0.35), when + Math.min(dur, guitar ? 0.35 : 0.6));
@@ -1458,10 +1527,11 @@ function start() {
   ensureSynth();
   if (hearRec()) {
     t = Math.max(0, t);
+    routeRecording();
     recAudio.playbackRate = speed; recAudio.preservesPitch = true; recAudio.currentTime = piece.offset + t;
     recAudio.play().catch(() => {});
   }
-  resync(); playing = true; last = performance.now();
+  resync(); playing = true; last = performance.now(); kickLogo();
   $('play').textContent = '❚❚ Pause';
   requestAnimationFrame(loop);
 }
@@ -1662,7 +1732,7 @@ async function boot() {
     $('txstatus').textContent = 'This is an example. Drop your own recording above to start.';
   }
   setInstrument(instrument);
-  drawWave(); updateGoLabel();
+  drawWave(); updateGoLabel(); updateFavicon();
 }
 boot();
 </script>
